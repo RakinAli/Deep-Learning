@@ -8,6 +8,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import tqdm as tqdm
 
 # Paths 
 DATAPATH = "Datasets/cifar-10-batches-py/"
@@ -39,7 +40,7 @@ def normalise(data,mean,std):
   """
   data = np.float64(data) # When calculating the mean and std, use float64
   data = np.transpose(data) # Converting n x d to d x n where columns = picture row = image
-  print(data.shape)
+  #print(data.shape)
   mean = np.mean(data, axis=1, keepdims=True)
   std = np.std(data, axis=1, keepdims=True)
   
@@ -66,6 +67,12 @@ def random_weight_bias_init(data,labels):
   #print("Bias shape", bias.shape)
 
   return weight, bias
+
+
+def softmax(x):
+    """ Standard definition of the softmax function """
+    return np.exp(x) / np.sum(np.exp(x), axis=0)
+
 
 def getting_started():
   """@docstring:
@@ -106,6 +113,41 @@ def getting_started():
 
   return data_train, labels_train, data_val, labels_val, data_test, labels_test, labels
 
+def evaluate_classifier(data, weight, bias):
+  """@docstring:
+  Evaluate the classifier for all the input images and return the scores.
+  Inputs:
+  - X: A numpy array of shape (D, N) containing the image data.
+  - W: A numpy array of shape (K, D) containing the weights.
+  - b: A numpy array of shape (K, 1) containing the biases.
+  Returns:
+  - s: A numpy array of shape (K, N) containing the computed scores.
+  """  
+  s = np.dot(weight, data) + bias
+  p = softmax(s)
+  return p
+
+def compute_accuracy(data, truth_labels, weight, bias):
+  """@docstring:
+  Compute the accuracy of the network's predictions.
+  Inputs:
+  - X: A numpy array of shape (D, N) containing the image data.
+  - y: A numpy array of shape (N,) containing the training labels.
+  - W: A numpy array of shape (K, D) containing the weights.
+  - b: A numpy array of shape (K, 1) containing the biases.
+  Returns:
+  - acc: The accuracy of the network.
+  """
+  # Getting the predicted labels
+  p = evaluate_classifier(data, weight, bias)
+  predicted_labels = np.argmax(p, axis=0)
+
+  # Calculating the accuracy
+  acc = np.sum(predicted_labels == truth_labels) / len(truth_labels)
+  print("Accuracy: ", acc * 100, "%")
+
+  return acc
+
 
 # main function
 if __name__ == "__main__":
@@ -114,10 +156,20 @@ if __name__ == "__main__":
   data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started()
 
   # Preprocessing the data
-  data_train, mean, std = normalise(data_train, None, None)
+  data_train, mean_train, std_train = normalise(data_train, None, None)
+  data_val, mean_val, std_val = normalise(data_val, None, None)
+  data_test, mean_test, std_test  = normalise(data_test, None, None)
 
   # Initializing the weights and biases
   weight, bias = random_weight_bias_init(data_train, labels)
+
+  # Evaluating the classifier
+  p = evaluate_classifier(data_train, weight, bias)
+
+  # Computing the accuracy
+  acc = compute_accuracy(data_train, labels_train, weight, bias)
+  
+
 
 
 
