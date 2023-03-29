@@ -127,6 +127,9 @@ def evaluate_classifier(data, weight, bias):
   p = softmax(s)
   return p
 
+
+
+
 def compute_accuracy(data, truth_labels, weight, bias):
   """@docstring:
   Compute the accuracy of the network's predictions.
@@ -149,6 +152,54 @@ def compute_accuracy(data, truth_labels, weight, bias):
   return acc
 
 
+def computeCost(data,labels,weights,bias,lmbd):
+  """@docstring:
+  Compute the cost function. The cost function is the average of the loss functions of the training images.
+  Inputs:
+  - X: A numpy array of shape (D, N) containing the image data.
+  - y: A numpy array of shape (N,) containing the training labels.
+  - W: A numpy array of shape (K, D) containing the weights.
+  - b: A numpy array of shape (K, 1) containing the biases.
+  - lmb: The regularization strength.
+  Returns:
+  - J: The cost function.
+  """
+  # Getting the probabilities
+  probabilities = evaluate_classifier(data, weights, bias)
+
+  # Calculating the loss function
+  loss = -np.log(probabilities[labels, range(len(labels))])
+
+  # Calculating the cost function
+  J = np.sum(loss) / len(labels) + lmbd * np.sum(weights ** 2)
+
+  
+
+
+def ComputeGradients(data,labels,probabilities,weight,lmb):
+  """@docstring:
+  Compute the gradients of the loss function with respect to the parameters W and b. Inpsired by lecture 3 slide 103 and 104.
+
+  Inputs:
+  - X: A numpy array of shape (D, N) containing the image data.
+  - y: A numpy array of shape (N,) containing the training labels.
+  - P: A numpy array of shape (K, N) containing the probabilities.
+  - W: A numpy array of shape (K, D) containing the weights.
+  - lmb: The regularization strength.
+  Returns:
+  - grad_W: A numpy array of shape (K, D) containing the gradients of the loss function with respect to W.
+  - grad_b: A numpy array of shape (K, 1) containing the gradients of the loss function
+  with respect to b.
+  """
+
+  g = -(labels - probabilities) # (K,N)
+  gradient_weight = np.dot(g, data.T)/ data.shape[1] + 2 * lmb * weight # (K,N) * (N,D) = (K,D)    
+  gradient_bias = np.sum(g, axis=1, keepdims=True)/ data.shape[1] # (K,1)
+  return gradient_weight, gradient_bias
+
+
+
+
 # main function
 if __name__ == "__main__":
 
@@ -168,7 +219,9 @@ if __name__ == "__main__":
 
   # Computing the accuracy
   acc = compute_accuracy(data_train, labels_train, weight, bias)
-  
+
+
+
 
 
 

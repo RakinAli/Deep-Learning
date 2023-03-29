@@ -1,11 +1,5 @@
 import numpy as np
 
-
-def softmax(x):
-    """ Standard definition of the softmax function """
-    return np.exp(x) / np.sum(np.exp(x), axis=0)
-
-
 def ComputeGradsNum(X, Y, P, W, b, lamda, h):
 	""" Converted from matlab code """
 	no 	= 	W.shape[0]
