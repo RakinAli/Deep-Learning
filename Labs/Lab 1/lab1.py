@@ -8,7 +8,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-import tqdm as tqdm
 
 # Paths 
 DATAPATH = "Datasets/cifar-10-batches-py/"
@@ -128,8 +127,6 @@ def evaluate_classifier(data, weight, bias):
   return p
 
 
-
-
 def compute_accuracy(data, truth_labels, weight, bias):
   """@docstring:
   Compute the accuracy of the network's predictions.
@@ -151,8 +148,30 @@ def compute_accuracy(data, truth_labels, weight, bias):
 
   return acc
 
+def loss_function(data,labels,weight,bias):
+  """@docstring:
+  Compute the loss function. The loss function is the average of the loss functions of the training images.
+  Inputs:
+  - X: A numpy array of shape (D, N) containing the image data.
+  - y: A numpy array of shape (N,) containing the training labels.
+  - W: A numpy array of shape (K, D) containing the weights.
+  - b: A numpy array of shape (K, 1) containing the biases.
+  Returns:
+  - J: The cost function.
+  """
+  # Getting the probabilities
+  probabilities = evaluate_classifier(data, weight, bias)
 
-def computeCost(data,labels,weights,bias,lmbd):
+  # Calculating the loss function
+  loss = -np.log(probabilities[labels, range(len(labels))])
+
+  # Calculating the cost function
+  J = np.sum(loss) / len(labels)
+
+  return J
+
+
+def compute_Cost(data,labels,weights,bias,lmbd):
   """@docstring:
   Compute the cost function. The cost function is the average of the loss functions of the training images.
   Inputs:
@@ -164,16 +183,12 @@ def computeCost(data,labels,weights,bias,lmbd):
   Returns:
   - J: The cost function.
   """
-  # Getting the probabilities
-  probabilities = evaluate_classifier(data, weights, bias)
+  loss = loss_function(data,labels,weights,bias)
+  regularisation = lmbd * np.sum(weights ** 2)
 
-  # Calculating the loss function
-  loss = -np.log(probabilities[labels, range(len(labels))])
+  J = loss + regularisation
 
-  # Calculating the cost function
-  J = np.sum(loss) / len(labels) + lmbd * np.sum(weights ** 2)
-
-  
+  return J
 
 
 def ComputeGradients(data,labels,probabilities,weight,lmb):
@@ -191,11 +206,90 @@ def ComputeGradients(data,labels,probabilities,weight,lmb):
   - grad_b: A numpy array of shape (K, 1) containing the gradients of the loss function
   with respect to b.
   """
-
   g = -(labels - probabilities) # (K,N)
   gradient_weight = np.dot(g, data.T)/ data.shape[1] + 2 * lmb * weight # (K,N) * (N,D) = (K,D)    
   gradient_bias = np.sum(g, axis=1, keepdims=True)/ data.shape[1] # (K,1)
   return gradient_weight, gradient_bias
+
+
+def mini_batch_training(data_train, label_train, data_val, label_val, data_test, label_test, weight, bias, lmbd, eta, n_batch, n_epochs):
+  """@docstring:
+  Mini-batch training of the network.
+  Inputs:
+  - X_train: A numpy array of shape (D, N) containing the training data.
+  - y_train: A numpy array of shape (N,) containing the training labels.
+  - X_val: A numpy array of shape (D, N_val) containing the validation data.
+  - y_val: A numpy array of shape (N_val,) containing the validation labels.
+  - X_test: A numpy array of shape (D, N_test) containing the test data.
+  - y_test: A numpy array of shape (N_test,) containing the test labels.
+  - W: A numpy array of shape (K, D) containing the weights.
+  - b: A numpy array of shape (K, 1) containing the biases.
+  - lmb: The regularization strength.
+  - eta: The learning rate.
+  - n_batch: The number of images per mini-batch.
+  - n_epochs: The number of epochs.
+  Returns:
+  - W: A numpy array of shape (K, D) containing the weights.
+  - b: A numpy array of shape (K, 1) containing the biases.
+  - loss_train: A list of length n_epochs containing the loss function at each epoch.
+  - loss_val: A list of length n_epochs containing the loss function at each epoch.
+  - loss_test: A list of length n_epochs containing the loss function at each epoch.
+  """
+  # Initializing the lists
+  loss_train = []
+  loss_val = []
+  loss_test = []
+
+  # Looping over the epochs
+  for i in range(n_epochs):
+    # Shuffling the data
+    data_train, label_train = shuffle_data(data_train, label_train)
+
+    # Looping over the mini batches
+    for j in range(0, data_train.shape[1], n_batch):
+      # Getting the mini batch
+      data_mini_batch = data_train[:, j:j+n_batch]
+      label_mini_batch = label_train[j:j+n_batch]
+
+      # Getting the probabilities
+      probabilities = evaluate_classifier(data_mini_batch, weight, bias)
+
+      # Computing the gradients
+      grad_weight, grad_bias = ComputeGradients(data_mini_batch, label_mini_batch , probabilities, weight, lmbd)
+
+      # Updating the weights and biases
+      weight = weight - eta * grad_weight
+      bias = bias - eta * grad_bias
+
+    # Computing the loss function
+    loss_train.append(loss_function(data_train, label_train, weight, bias))
+    loss_val.append(loss_function(data_val, label_val, weight, bias))
+    loss_test.append(loss_function(data_test, label_test, weight, bias))
+
+  return weight, bias, loss_train, loss_val, loss_test
+
+def shuffle_data(data, labels):
+  """@docstring:
+  Shuffle the data and labels.
+  Inputs:
+  - data: A numpy array of shape (D, N) containing the data.
+  - labels: A numpy array of shape (N,) containing the labels.
+  Returns:
+  - data: A numpy array of shape (D, N) containing the shuffled data.
+  - labels: A numpy array of shape (N,) containing the shuffled labels.
+  """
+  # Getting the indices
+  indices = np.arange(data.shape[1])
+
+  # Shuffling the indices
+  np.random.shuffle(indices)
+
+  # Shuffling the data and labels
+  data = data[:, indices]
+  labels = labels[indices]
+
+  return data, labels
+
 
 
 
@@ -219,27 +313,4 @@ if __name__ == "__main__":
 
   # Computing the accuracy
   acc = compute_accuracy(data_train, labels_train, weight, bias)
-
-
-
-
-
-
-
-
-
-
-  
-
-  
-
-
-
-
-  
-
-
-
-
-  
 
