@@ -7,15 +7,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+from prettytable import PrettyTable
 
 # Paths
 DATAPATH = "Datasets/cifar-10-batches-py/"
-LENGTH = 1024  # Pixels per image
-WIDTH = 32  # Width of image
 D_BATCH = ['data_batch_1', 'data_batch_2',
            'data_batch_3', 'data_batch_4', 'data_batch_5']
 T_BATCH = 'test_batch'
-SIZE = 32  # Pixel dimension of the image
 
 
 def LoadBatch(filename):
@@ -61,8 +59,6 @@ def getting_started():
     labels = LoadBatch(DATAPATH + 'batches.meta')['label_names']
     return data_train, labels_train, data_val, labels_val, data_test, labels_test, labels
 
-# Preprocess data"""
-
 
 def softmax(x):
     """ Standard definition of the softmax function """
@@ -88,7 +84,19 @@ def normalise(data, mean, std):
         std = np.std(data, axis=0)  # Standard deviation of each column
     data = (data - mean) / std
     data = np.transpose(data)  # Transpose the data to get the shape (D, N)
-    return np.array(data), mean, std
+    return data, mean, std
+
+def preprocess_data(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names):
+    data_train, mean, std = normalise(data_train, None, None)
+    data_val, _, _ = normalise(data_val, mean, std)
+    data_test, _, _ = normalise(data_test, mean, std)
+
+    # One hot encoding --> One hot encoding the labels
+    labels_train = one_hot_encoding(labels_train, 10)  # k x N matrix
+    labels_val = one_hot_encoding(labels_val, 10)  # k x N matrix
+    labels_test = one_hot_encoding(labels_test, 10)  # k x N matrix
+
+
 
 def one_hot_encoding(labels, dimensions):
     """@docstring:
@@ -213,11 +221,24 @@ def compute_gradients(data, labels, p, weight, lmda):
     return grad_w, grad_b
 
 
+def montage(W):
+    """ Display the image for each label in W """
+    fig, ax = plt.subplots(2, 5)
+    for i in range(2):
+        for j in range(5):
+            im = W[i * 5 + j, :].reshape(32, 32, 3, order='F')
+            sim = (im - np.min(im[:])) / (np.max(im[:]) - np.min(im[:]))
+            sim = sim.transpose(1, 0, 2)
+            ax[i][j].imshow(sim, interpolation='nearest')
+            ax[i][j].set_title("y=" + str(5 * i + j))
+            ax[i][j].axis('off')
+    plt.show()
+
 if __name__ == "__main__":
     # Getting started
     data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names = getting_started()
 
-    # Preprocessing the data --Z Normlaisation part
+    # Preprocessing the data --Z No
     data_train, mean, std = normalise(data_train, None, None)
     data_val, _, _ = normalise(data_val, mean, std)
     data_test, _, _ = normalise(data_test, mean, std)
@@ -237,8 +258,19 @@ if __name__ == "__main__":
     # Hyperparameters
     epochs = 40
     batch_size = 1000
-    learning_rate = 0.001
-    lamda = 0.1
+    learning_rate = 0.1
+    lamda = 0
+
+    training_cost = list()
+    validation_cost = list()
+    epoch_list = list()
+    accuracy_list= list()
+    trainingloss_list= list()
+    validationloss_list= list()
+
+    table = PrettyTable()
+    table.field_names = ["Epochs", "Training Cost",
+                         "Validation Cost", "Accuracy"]
 
     # Mini-batch gradient descent
     for i in range(epochs):
@@ -260,12 +292,50 @@ if __name__ == "__main__":
             bias -= learning_rate * grad_b
 
         # Compute the cost and accuracy on the training and validation set
-        train_cost = compute_cost(data_train, labels_train, weight, bias, lamda)
-        train_acc = compute_accuracy(data_train, labels_train, weight, bias)
-        val_cost = compute_cost(data_val, labels_val, weight, bias, lamda)
-        val_acc = compute_accuracy(data_val, labels_val, weight, bias)
+        training_cost.append(compute_cost(data_train, labels_train, weight, bias, lamda))
+        trainingloss_list.append(get_loss(data_train, labels_train, weight, bias))
+        validation_cost.append(compute_cost(data_val, labels_val, weight, bias, lamda))
+        validationloss_list.append(get_loss(data_val, labels_val, weight, bias))
 
-        print("Epoch: %d, Train Cost: %f, Train Acc: %f, Val Cost: %f, Val Acc: %f" % (
-            i, train_cost, train_acc, val_cost, val_acc))
-        
+        accuracy_list.append(compute_accuracy(data_val, labels_val, weight, bias))
+        epoch_list.append(i)
+        table.add_row([i, training_cost[i], validation_cost[i], accuracy_list[i]])
+
+
+    montage(weight)
+
+    
+    # Plotting the accuracy
+    plt.plot(epoch_list, accuracy_list, label='Validation Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.show()
+    # Save the figure at the location specified
+    plt.savefig('Accuracy.png')
+
+    # Making a table over epochs, training cost, validation cost and accuracy
+    print(table)
+    # Convert the table to a csv file
+    with open('table.csv', 'w') as f:
+        f.write(table.get_string())
+
+    # Do two plots, one for training cost and one for validation cost
+    plt.plot(epoch_list, training_cost, label='Training Cost')
+    plt.plot(epoch_list, validation_cost, label='Validation Cost')
+    plt.xlabel('Epochs')
+    plt.ylabel('Cost')
+    plt.legend()
+    plt.show()
+    # Save the figure at the location specified
+    plt.savefig('Training_cost.png')
+
+    # Do two plots, one for training loss and one for validation loss
+    plt.plot(epoch_list, trainingloss_list, label='Training Loss')
+    plt.plot(epoch_list, validationloss_list, label='Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+
 
