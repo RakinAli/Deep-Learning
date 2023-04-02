@@ -194,6 +194,44 @@ def compute_accuracy(data, labels, weights, bias):
     acc = np.sum(p == labels) / len(labels)
     return acc
 
+
+def compute_gradients_num(data, labels, weight, bias, lmda, h=1e-6):
+    """@docstring:
+    Compute the gradients of the loss function with respect to the parameters numerically.
+    Inputs:
+    - X: A numpy array of shape (D, N) containing the image data.
+    - Y: A numpy array of shape (K, N) containing the one-hot encoded labels.
+    - W: A numpy array of shape (K, D) containing the weights.
+    - b: A numpy array of shape (K, 1) containing the biases.
+    - lmda: The regularization parameter.
+    - h: The step size for the numerical approximation of the gradients.
+    Returns:
+    - grad_w: A numpy array of shape (K, D) containing the gradients of the loss with respect to the weights.
+    - grad_b: A numpy array of shape (K, 1) containing the gradients of the loss with respect to the biases.
+    """
+    grad_w = np.zeros(weight.shape)
+    grad_b = np.zeros((labels.shape[0], 1))
+
+    c = get_loss(data, labels, weight, bias)
+
+    for i in range(weight.shape[0]):
+        for j in range(weight.shape[1]):
+            w_try = np.copy(weight)
+            w_try[i, j] += h
+            c2 = get_loss(data, labels, w_try, bias)
+            grad_w[i, j] = (c2 - c) / h
+
+    for i in range(labels.shape[0]):
+        b_try = np.copy(bias)
+        b_try[i] += h
+        c2 = get_loss(data, labels, weight, b_try)
+        grad_b[i] = (c2 - c) / h
+
+    grad_w += 2 * lmda * weight
+    return grad_w, grad_b
+
+ 
+
 def compute_gradients(data, labels, p, weight, lmda):
     """@docstring:
     Compute the gradients of the loss function with respect to the parameters. Does this analytically, Fast but not super accurate.
@@ -231,7 +269,7 @@ def encode_all(labels_train, labels_val, labels_test):
     """@docstring:
     One hot encoding the labels
     Returns:
-    - labels_train: A numpy array of shape (K, N) containing the one-hot encoded labels for the training data.
+    - labels_train: A numpy array of<< shape (K, N) containing the one-hot encoded labels for the training data.
     - labels_val: A numpy array of shape (K, N) containing the one-hot encoded labels for the validation data.
     - labels_test: A numpy array of shape (K, N) containing the one-hot encoded labels for the test data.
     """
@@ -240,6 +278,22 @@ def encode_all(labels_train, labels_val, labels_test):
     labels_val = one_hot_encoding(labels_val, 10)  # k x N matrix
     labels_test = one_hot_encoding(labels_test, 10)  # k x N matrix
     return labels_train, labels_val, labels_test
+
+def test_different_gradients(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names, weight, bias, lmda):
+    """@docstring:
+    Test the difference between the analytical and numerical gradient
+    """
+    # Analytical gradient
+    p = evaluate_classifier(data_train, weight, bias)
+    grad_w, grad_b = compute_gradients(data_train, labels_train, p, weight, lmda)
+
+    # Numerical gradient
+    grad_w_num, grad_b_num = compute_gradients_num(data_train, labels_train, weight, bias, lmda)
+
+    # Difference between the analytical and numerical gradient
+    diff_w = np.linalg.norm(grad_w - grad_w_num) / np.linalg.norm(grad_w + grad_w_num)
+    diff_b = np.linalg.norm(grad_b - grad_b_num) / np.linalg.norm(grad_b + grad_b_num)
+    print("The difference between the analytical and numerical gradient is: ", "Weights:" ,diff_w, "Bias:" ,diff_b)
 
 if __name__ == "__main__":
     # Getting started
@@ -256,9 +310,9 @@ if __name__ == "__main__":
     #Mini-batch gradient descent
     # Hyperparameters
     epochs = 40
-    batch_size = 1000
-    learning_rate = 0.1
-    lamda = 0
+    batch_size = 100
+    learning_rate = 0.001
+    lamda = 1
 
     training_cost = list()
     validation_cost = list()
@@ -268,8 +322,14 @@ if __name__ == "__main__":
     validationloss_list= list()
 
     table = PrettyTable()
+    table_grads = PrettyTable()
     table.field_names = ["Epochs", "Training Cost",
                          "Validation Cost", "Accuracy"]
+
+    print("Test numerical gradient vs analytical gradient")
+    # Compare the difference between the analytical and numerical gradient in a small batch
+    test_different_gradients(data_train[:, :batch_size], labels_train[:, :batch_size], data_val, labels_val, data_test, labels_test, labels_names, weight, bias, lamda)
+    print("Done")  
 
     # Mini-batch gradient descent
     for i in range(epochs):
@@ -295,9 +355,9 @@ if __name__ == "__main__":
         trainingloss_list.append(get_loss(data_train, labels_train, weight, bias))
         validation_cost.append(compute_cost(data_val, labels_val, weight, bias, lamda))
         validationloss_list.append(get_loss(data_val, labels_val, weight, bias))
-
         accuracy_list.append(compute_accuracy(data_val, labels_val, weight, bias))
         epoch_list.append(i)
+
         table.add_row([i, training_cost[i], validation_cost[i], accuracy_list[i]])
     montage(weight)
 
@@ -315,7 +375,7 @@ if __name__ == "__main__":
     # Convert the table to a csv file
     with open('table.csv', 'w') as f:
         f.write(table.get_string())
-
+    
     # Do two plots, one for training cost and one for validation cost
     plt.plot(epoch_list, training_cost, label='Training Cost')
     plt.plot(epoch_list, validation_cost, label='Validation Cost')
@@ -335,6 +395,5 @@ if __name__ == "__main__":
     plt.show()
     # Save the figure at the location specified
     plt.savefig('val_training_loss.png')
-
 
     
