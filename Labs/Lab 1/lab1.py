@@ -56,7 +56,14 @@ def getting_started():
 
 
 def softmax(x):
-    """ Standard definition of the softmax function """
+    """ @Docstring:
+     Softmax function. It takes as input a vector of K real numbers, and normalizes it into a probability distribution consisting of K probabilities
+      proportional to the exponentials of the input numbers.    
+    Inputs:
+    - x: A numpy array of shape (K, N) containing scores for N examples.
+    Returns:
+    - softmax: A numpy array of shape (K, N) containing the softmax of the input.
+    """
     return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 
@@ -190,6 +197,7 @@ def compute_accuracy(data, labels, weights, bias):
 def compute_gradients(data, labels, p, weight, lmda):
     """@docstring:
     Compute the gradients of the loss function with respect to the parameters. Does this analytically, Fast but not super accurate.
+    Heavily inspired from the lecture slides from lecture 3 & Github Copilot suggestions. 
     Inputs:
     - X: A numpy array of shape (D, N) containing the image data.
     - Y: A numpy array of shape (K, N) containing the one-hot encoded labels.
@@ -327,3 +335,6 @@ if __name__ == "__main__":
     plt.show()
     # Save the figure at the location specified
     plt.savefig('val_training_loss.png')
+
+
+    
