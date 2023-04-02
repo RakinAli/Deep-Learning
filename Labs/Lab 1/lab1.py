@@ -9,12 +9,6 @@ import matplotlib.pyplot as plt
 import pickle
 from prettytable import PrettyTable
 
-# Paths
-DATAPATH = "Datasets/cifar-10-batches-py/"
-D_BATCH = ['data_batch_1', 'data_batch_2',
-           'data_batch_3', 'data_batch_4', 'data_batch_5']
-T_BATCH = 'test_batch'
-
 
 def LoadBatch(filename):
     with open(filename, 'rb') as fo:
@@ -36,27 +30,28 @@ def getting_started():
     """
     # Read training data from Batch 0
     # Loading the batch_0 as a dictionary
-    batch_0 = LoadBatch(DATAPATH + D_BATCH[0])
+    batch_0 = LoadBatch("Datasets/cifar-10-batches-py/" + 'data_batch_1')
     # print(data.keys())
     data_train = batch_0['data']  # Grabbing the data
     labels_train = batch_0['labels']  # Grabbing the labels
 
     # Read validation data from Batch 1
     # Loading the batch_1 as a dictionary
-    batch_1 = LoadBatch(DATAPATH + D_BATCH[1])
+    batch_1 = LoadBatch("Datasets/cifar-10-batches-py/" + 'data_batch_2')
     # print(data.keys())
     data_val = batch_1['data']  # Grabbing the data
     labels_val = batch_1['labels']  # Grabbing the labels
 
     # Read test data from test_batch
     # Loading the test_batch as a dictionary
-    batch_test = LoadBatch(DATAPATH + T_BATCH)
+    batch_test = LoadBatch("Datasets/cifar-10-batches-py/" + 'test_batch')
     # print(data.keys())
     data_test = batch_test['data']  # Grabbing the data
     labels_test = batch_test['labels']  # Grabbing the labels
 
     # Grading the labels
-    labels = LoadBatch(DATAPATH + 'batches.meta')['label_names']
+    labels = LoadBatch("Datasets/cifar-10-batches-py/" +
+                       'batches.meta')['label_names']
     return data_train, labels_train, data_val, labels_val, data_test, labels_test, labels
 
 
@@ -77,7 +72,7 @@ def normalise(data, mean, std):
     - mean: The mean image, of shape (D,1)
     - std: The standard deviation, of shape (D,1)
     """
-    data = np.float64(data)
+    data = np.float64(data) # Required for division to work
     if mean is None:
         mean = np.mean(data, axis=0)  # Mean of each column
     if std is None:
@@ -86,17 +81,11 @@ def normalise(data, mean, std):
     data = np.transpose(data)  # Transpose the data to get the shape (D, N)
     return data, mean, std
 
-def preprocess_data(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names):
-    data_train, mean, std = normalise(data_train, None, None)
-    data_val, _, _ = normalise(data_val, mean, std)
-    data_test, _, _ = normalise(data_test, mean, std)
-
-    # One hot encoding --> One hot encoding the labels
-    labels_train = one_hot_encoding(labels_train, 10)  # k x N matrix
-    labels_val = one_hot_encoding(labels_val, 10)  # k x N matrix
-    labels_test = one_hot_encoding(labels_test, 10)  # k x N matrix
-
-
+def normalise_all(data_train, data_val, data_test):
+    data_train_norm, mean, std = normalise(data_train, None, None)
+    data_val_norm, _, _ = normalise(data_val, mean, std)
+    data_test_norm, _, _ = normalise(data_test, mean, std)
+    return data_train_norm, data_val_norm, data_test_norm,
 
 def one_hot_encoding(labels, dimensions):
     """@docstring:
@@ -181,7 +170,6 @@ def compute_cost(data, labels, weight, bias, lamda=0):
     cost = loss + (lamda * weight_sum)
     return cost
 
-
 def compute_accuracy(data, labels, weights, bias):
     """@docstring:
     Compute the accuracy of the network for the given data and labels.
@@ -199,10 +187,9 @@ def compute_accuracy(data, labels, weights, bias):
     acc = np.sum(p == labels) / len(labels)
     return acc
 
-
 def compute_gradients(data, labels, p, weight, lmda):
     """@docstring:
-    Compute the gradients of the loss function with respect to the parameters.
+    Compute the gradients of the loss function with respect to the parameters. Does this analytically, Fast but not super accurate.
     Inputs:
     - X: A numpy array of shape (D, N) containing the image data.
     - Y: A numpy array of shape (K, N) containing the one-hot encoded labels.
@@ -212,14 +199,12 @@ def compute_gradients(data, labels, p, weight, lmda):
     - grad_W: A numpy array of shape (K, D) containing the gradients of the loss with respect to the weights.
     - grad_b: A numpy array of shape (K, 1) containing the gradients of the loss with respect to the biases.
     """
-    
     g = -(labels-p)  # K x N
     weight_gradient = (np.dot(g, np.transpose(data))/data.shape[1]) + 2 * lmda * weight  # K x D
     bias_gradient = np.sum(g, axis=1, keepdims=True)/data.shape[1]  # K x 1
     grad_w = weight_gradient
     grad_b = bias_gradient
     return grad_w, grad_b
-
 
 def montage(W):
     """ Display the image for each label in W """
@@ -234,25 +219,31 @@ def montage(W):
             ax[i][j].axis('off')
     plt.show()
 
-if __name__ == "__main__":
-    # Getting started
-    data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names = getting_started()
-
-    # Preprocessing the data --Z No
-    data_train, mean, std = normalise(data_train, None, None)
-    data_val, _, _ = normalise(data_val, mean, std)
-    data_test, _, _ = normalise(data_test, mean, std)
-
+def encode_all(labels_train, labels_val, labels_test):
+    """@docstring:
+    One hot encoding the labels
+    Returns:
+    - labels_train: A numpy array of shape (K, N) containing the one-hot encoded labels for the training data.
+    - labels_val: A numpy array of shape (K, N) containing the one-hot encoded labels for the validation data.
+    - labels_test: A numpy array of shape (K, N) containing the one-hot encoded labels for the test data.
+    """
     # One hot encoding --> One hot encoding the labels
     labels_train = one_hot_encoding(labels_train, 10)  # k x N matrix
     labels_val = one_hot_encoding(labels_val, 10)  # k x N matrix
     labels_test = one_hot_encoding(labels_test, 10)  # k x N matrix
+    return labels_train, labels_val, labels_test
+
+if __name__ == "__main__":
+    # Getting started
+    data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names = getting_started()
+
+    # Normalising the data
+    data_train, data_val, data_test = normalise_all(data_train, data_val, data_test)
+
+    labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
     # Random weight and bias initialisation
     weight, bias = random_weight_bias_init(data_train, labels_names)
-
-    # Evaluating the classifier
-    probabilities = evaluate_classifier(data_train, weight, bias)
 
     #Mini-batch gradient descent
     # Hyperparameters
@@ -300,11 +291,8 @@ if __name__ == "__main__":
         accuracy_list.append(compute_accuracy(data_val, labels_val, weight, bias))
         epoch_list.append(i)
         table.add_row([i, training_cost[i], validation_cost[i], accuracy_list[i]])
-
-
     montage(weight)
 
-    
     # Plotting the accuracy
     plt.plot(epoch_list, accuracy_list, label='Validation Accuracy')
     plt.xlabel('Epochs')
@@ -337,5 +325,5 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.legend()
     plt.show()
-
-
+    # Save the figure at the location specified
+    plt.savefig('val_training_loss.png')
