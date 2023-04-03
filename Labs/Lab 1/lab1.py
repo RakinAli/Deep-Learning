@@ -15,6 +15,7 @@ def LoadBatch(filename):
         dict = pickle.load(fo, encoding='latin1')
     return dict
 
+
 def getting_started():
     """@docstring:
     This function will help you get started on the CIFAR-10 dataset. Reads the bathces 0 and batches 1 to do training and validation
@@ -79,7 +80,7 @@ def normalise(data, mean, std):
     - mean: The mean image, of shape (D,1)
     - std: The standard deviation, of shape (D,1)
     """
-    data = np.float64(data) # Required for division to work
+    data = np.float64(data)  # Required for division to work
     if mean is None:
         mean = np.mean(data, axis=0)  # Mean of each column
     if std is None:
@@ -88,11 +89,13 @@ def normalise(data, mean, std):
     data = np.transpose(data)  # Transpose the data to get the shape (D, N)
     return data, mean, std
 
+
 def normalise_all(data_train, data_val, data_test):
     data_train_norm, mean, std = normalise(data_train, None, None)
     data_val_norm, _, _ = normalise(data_val, mean, std)
     data_test_norm, _, _ = normalise(data_test, mean, std)
     return data_train_norm, data_val_norm, data_test_norm,
+
 
 def one_hot_encoding(labels, dimensions):
     """@docstring:
@@ -177,6 +180,7 @@ def compute_cost(data, labels, weight, bias, lamda=0):
     cost = loss + (lamda * weight_sum)
     return cost
 
+
 def compute_accuracy(data, labels, weights, bias):
     """@docstring:
     Compute the accuracy of the network for the given data and labels.
@@ -230,7 +234,6 @@ def compute_gradients_num(data, labels, weight, bias, lmda, h=1e-6):
     grad_w += 2 * lmda * weight
     return grad_w, grad_b
 
- 
 
 def compute_gradients(data, labels, p, weight, lmda):
     """@docstring:
@@ -246,11 +249,13 @@ def compute_gradients(data, labels, p, weight, lmda):
     - grad_b: A numpy array of shape (K, 1) containing the gradients of the loss with respect to the biases.
     """
     g = -(labels-p)  # K x N
-    weight_gradient = (np.dot(g, np.transpose(data))/data.shape[1]) + 2 * lmda * weight  # K x D
+    weight_gradient = (np.dot(g, np.transpose(data)) /
+                       data.shape[1]) + 2 * lmda * weight  # K x D
     bias_gradient = np.sum(g, axis=1, keepdims=True)/data.shape[1]  # K x 1
     grad_w = weight_gradient
     grad_b = bias_gradient
     return grad_w, grad_b
+
 
 def montage(W):
     """ Display the image for each label in W """
@@ -264,6 +269,7 @@ def montage(W):
             ax[i][j].set_title("y=" + str(5 * i + j))
             ax[i][j].axis('off')
     plt.show()
+
 
 def encode_all(labels_train, labels_val, labels_test):
     """@docstring:
@@ -279,35 +285,42 @@ def encode_all(labels_train, labels_val, labels_test):
     labels_test = one_hot_encoding(labels_test, 10)  # k x N matrix
     return labels_train, labels_val, labels_test
 
+
 def test_different_gradients(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names, weight, bias, lmda):
     """@docstring:
     Test the difference between the analytical and numerical gradient
     """
     # Analytical gradient
     p = evaluate_classifier(data_train, weight, bias)
-    grad_w, grad_b = compute_gradients(data_train, labels_train, p, weight, lmda)
+    grad_w, grad_b = compute_gradients(
+        data_train, labels_train, p, weight, lmda)
 
     # Numerical gradient
-    grad_w_num, grad_b_num = compute_gradients_num(data_train, labels_train, weight, bias, lmda)
+    grad_w_num, grad_b_num = compute_gradients_num(
+        data_train, labels_train, weight, bias, lmda)
 
     # Difference between the analytical and numerical gradient
-    diff_w = np.linalg.norm(grad_w - grad_w_num) / np.linalg.norm(grad_w + grad_w_num)
-    diff_b = np.linalg.norm(grad_b - grad_b_num) / np.linalg.norm(grad_b + grad_b_num)
-    print("The difference between the analytical and numerical gradient is: ", "Weights:" ,diff_w, "Bias:" ,diff_b)
+    diff_w = np.linalg.norm(grad_w - grad_w_num)
+    diff_b = np.linalg.norm(grad_b - grad_b_num)
+    print("The difference between the analytical and numerical gradient is: ",
+          "Weights:", diff_w, "Bias:", diff_b)
+
 
 if __name__ == "__main__":
     # Getting started
     data_train, labels_train, data_val, labels_val, data_test, labels_test, labels_names = getting_started()
 
     # Normalising the data
-    data_train, data_val, data_test = normalise_all(data_train, data_val, data_test)
+    data_train, data_val, data_test = normalise_all(
+        data_train, data_val, data_test)
 
-    labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
+    labels_train, labels_val, labels_test = encode_all(
+        labels_train, labels_val, labels_test)
 
     # Random weight and bias initialisation
     weight, bias = random_weight_bias_init(data_train, labels_names)
 
-    #Mini-batch gradient descent
+    # Mini-batch gradient descent
     # Hyperparameters
     epochs = 40
     batch_size = 100
@@ -317,9 +330,9 @@ if __name__ == "__main__":
     training_cost = list()
     validation_cost = list()
     epoch_list = list()
-    accuracy_list= list()
-    trainingloss_list= list()
-    validationloss_list= list()
+    accuracy_list = list()
+    trainingloss_list = list()
+    validationloss_list = list()
 
     table = PrettyTable()
     table_grads = PrettyTable()
@@ -328,8 +341,9 @@ if __name__ == "__main__":
 
     print("Test numerical gradient vs analytical gradient")
     # Compare the difference between the analytical and numerical gradient in a small batch
-    test_different_gradients(data_train[:, :batch_size], labels_train[:, :batch_size], data_val, labels_val, data_test, labels_test, labels_names, weight, bias, lamda)
-    print("Done")  
+    test_different_gradients(data_train[:, :batch_size], labels_train[:, :batch_size],
+                             data_val, labels_val, data_test, labels_test, labels_names, weight, bias, lamda)
+    print("Done")
 
     # Mini-batch gradient descent
     for i in range(epochs):
@@ -351,14 +365,22 @@ if __name__ == "__main__":
             bias -= learning_rate * grad_b
 
         # Compute the cost and accuracy on the training and validation set
-        training_cost.append(compute_cost(data_train, labels_train, weight, bias, lamda))
-        trainingloss_list.append(get_loss(data_train, labels_train, weight, bias))
-        validation_cost.append(compute_cost(data_val, labels_val, weight, bias, lamda))
-        validationloss_list.append(get_loss(data_val, labels_val, weight, bias))
-        accuracy_list.append(compute_accuracy(data_val, labels_val, weight, bias))
+        training_cost.append(compute_cost(
+            data_train, labels_train, weight, bias, lamda))
+        validation_cost.append(compute_cost(
+            data_val, labels_val, weight, bias, lamda))
+
+        trainingloss_list.append(
+            get_loss(data_train, labels_train, weight, bias))
+        validationloss_list.append(
+            get_loss(data_val, labels_val, weight, bias))
+
+        accuracy_list.append(compute_accuracy(
+            data_val, labels_val, weight, bias))
         epoch_list.append(i)
 
-        table.add_row([i, training_cost[i], validation_cost[i], accuracy_list[i]])
+        table.add_row(
+            [i, training_cost[i], validation_cost[i], accuracy_list[i]])
     montage(weight)
 
     # Plotting the accuracy
@@ -375,7 +397,7 @@ if __name__ == "__main__":
     # Convert the table to a csv file
     with open('table.csv', 'w') as f:
         f.write(table.get_string())
-    
+
     # Do two plots, one for training cost and one for validation cost
     plt.plot(epoch_list, training_cost, label='Training Cost')
     plt.plot(epoch_list, validation_cost, label='Validation Cost')
@@ -395,5 +417,3 @@ if __name__ == "__main__":
     plt.show()
     # Save the figure at the location specified
     plt.savefig('val_training_loss.png')
-
-    
