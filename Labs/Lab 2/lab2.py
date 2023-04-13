@@ -18,7 +18,8 @@ def LoadBatch(filename):
 
 def getting_started():
     """@docstring:
-    This function will help you get started on the CIFAR-10 dataset. Reads the bathces 0 and batches 1 to do training and validation
+    This function will help you get started on the CIFAR-10 dataset. 
+    Reads the bathces 0 and batches 1 to do training and validation
     Reads the test_batch to do testing
     Returns:
     - data_train: A numpy array of shape (3072, 10000) containing the training data.
@@ -114,6 +115,7 @@ def normalise_all(data_train, data_val, data_test):
     data_test_norm, _, _ = normalise(data_test, mean, std)
     return data_train_norm, data_val_norm, data_test_norm,
 
+
 def init_weights_bias(data_train, labels, hidden_nodes=50):
     """@docstring:
     Initialize the weights and bias
@@ -137,6 +139,127 @@ def init_weights_bias(data_train, labels, hidden_nodes=50):
     return weight, bias
 
 
+def get_scores(data, weights, bias):
+    """@docstring:
+    Compute the scores
+    Returns:
+    - s : a list of numpy arrays containing the scores
+    """
+    s = weights @ data + bias
+    return s
+
+
+def relu(s):
+    """@docstring:
+    Compute the ReLU activation function
+    Returns:
+    - h : a list of numpy arrays containing the ReLU activation function
+    """
+    h = np.maximum(0, s)
+    return h
+
+
+def forward_pass(data, weights, bias):
+    """@docstring:
+    Compute the forward pass
+    Specifcally takes a input data through a NN to produce an output. 
+    Input data is multiplied by the weights and added to the bias.
+    and then passed through a ReLU activation function to produce the output.
+    This is done for each layer in the NN.
+    Returns:
+    - s2 : a list of numpy arrays containing the scores for the second layer
+    - h1 : a list of numpy arrays containing the ReLU activation function for the first layer   
+    - s1 : a list of numpy arrays containing the scores for the first layer
+    """
+    s1 = get_scores(data, weights[0], bias[0])
+    h1 = relu(s1)
+    s2 = get_scores(h1, weights[1], bias[1])
+    return s2, h1, s1 
+
+
+def softmax(s):
+    """@docstring: 
+    Compute the softmax activation function
+    Input: s - a numpy array of shape (K, N) containing the scores
+    Returns:
+    - p : a numpy array of shape (K, N) containing the probabilities
+    """
+    p = np.exp(s) / np.sum(np.exp(s), axis=0)
+    return p
+
+
+def compute_accuracy(data,labels,weight,bias):
+    """@docstring:
+    Compute the accuracy of the model
+    Returns:
+    - accuracy: a float value between 0 and 1
+    """
+    s2, h1, s1 = forward_pass(data, weight, bias)
+    p = softmax(s2)
+    guess = np.argmax(p, axis=0)
+    correct = np.argmax(labels, axis=0)
+    accuracy = np.sum(guess == correct) / len(correct)
+    return accuracy
+
+
+def compute_loss(data,labels,weight,bias):
+    """@docstring:
+    Compute the loss of the model. THIS WAS TAKEN FROM CHATGPT-3 CODE
+    hoever verified by asking other classmates if they had similar code.
+    Returns:
+    - loss: a float value
+    """
+    s2, _, _ = forward_pass(data, weight, bias)
+    p = softmax(s2)
+    loss = -np.sum(np.log(np.sum(p * labels, axis=0))) / labels.shape[1]
+    print("Loss: ", loss)
+    return loss 
+
+
+def compute_cost(data,labels,weight,bias,reg):
+    """@docstring:
+    Compute the cost of the model
+    Returns:
+    - cost: a float value
+    """
+    loss = compute_loss(data,labels,weight,bias)
+    cost = loss + reg * (np.sum(weight[0]**2) + np.sum(weight[1]**2))
+    return cost
+
+
+def gradients(data, labels_val, weights, regulariser, probs):
+    """@docstring:
+    Compute the gradients analytically, see lecture 4 slides 30 to 38 for more details.
+    ChatGPT-3 + Lecture slides + Github Copilot helped me a lot with this function. 
+    All code written below is my own however I did use the above resources to help me.
+    Scared of plagiarism so I am being very clear about this. 
+    Returns:
+    - gradient_w : a list of numpy arrays containing the gradients of the weights
+    - gradient_b : a list of numpy arrays containing the gradients of the bias
+    """
+    gradient_w = list()
+    gradient_b = list()
+
+    # Last layer --> Taken from the lecture
+    g = -(labels_val - probs)
+    gradient1_weight = g @ data[-1].T /data[0].shape[1] + 2 * regulariser * weights[-1]
+    gradient1_bias = np.sum(g, axis=1, keepdims=True)/data[0].shape[1]
+    gradient_w.append(gradient1_weight)
+    gradient_b.append(gradient1_bias)
+
+    # Backward pass to the remaining layers
+    for i in range(1, len(data)):
+        g = weights[-i].T @ g * (data[-i] > 0) # ReLU derivative = 1 if x > 0 else 0 
+        gradient_weight = g @ data[-i-1].T /data[0].shape[1] + 2 * regulariser * weights[-i-1]
+        gradient_bias = np.sum(g, axis=1, keepdims=True)/data[0].shape[1]
+        gradient_w.append(gradient_weight)
+        gradient_b.append(gradient_bias)
+
+    gradient_w.reverse()
+    gradient_b.reverse()
+
+    return gradient_w, gradient_b
+    
 
 if __name__ == '__main__':
     # Getting started
@@ -144,11 +267,28 @@ if __name__ == '__main__':
     #print("Shape of the training data: ", data_train.shape)
 
     # Normalising the data
-    data_train_norm, data_val_norm, data_test_norm = normalise_all( data_train, data_val, data_test) 
+    data_train, data_val, data_test = normalise_all( data_train, data_val, data_test) 
 
     # One hot encoding the labels
     labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
     # Initializing the weights and bias
-    weights, bias = init_weights_bias(data_train_norm, labels_train, hidden_nodes=50)
-    
+    weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
+
+    # Forward pass
+    s2, h1, s1 = forward_pass(data_train, weights, bias)
+    print("Shape of the scores for the second layer: ", s2.shape)
+    print("Shape of the ReLU activation function for the first layer: ", h1.shape)
+    print("Shape of the scores for the first layer: ", s1.shape)
+
+    # Compute the accuracy of the model
+    accuracy = compute_accuracy(data_train, labels_train, weights, bias)    
+
+    # Compute the loss of the model
+    loss = compute_loss(data_train, labels_train, weights, bias)
+
+    # Compute gradients
+    probs = softmax(s2)
+    gradient_w, gradient_b = gradients([data_train, h1], labels_train, weights, 0.001, probs)
+
+
