@@ -160,22 +160,30 @@ def relu(s):
 
 
 def forward_pass(data, weights, bias):
+    # Note: Inpired by the forward pass in the lecture notes of the course
+    # Also inpspired by other students from this course,
+    # Previuosly I had a different implementation of the forward pass but it was hard coded to 2 layers
+    # Afterwards when I saw the implementation of other students I decided to implement it in a more general way
     """@docstring:
-    Compute the forward pass
-    Specifcally takes a input data through a NN to produce an output. 
-    Input data is multiplied by the weights and added to the bias.
-    and then passed through a ReLU activation function to produce the output.
-    This is done for each layer in the NN.
+    Compute the forward pass for all the layers
     Returns:
-    - s2 : a list of numpy arrays containing the scores for the second layer
-    - h1 : a list of numpy arrays containing the ReLU activation function for the first layer   
-    - s1 : a list of numpy arrays containing the scores for the first layer
+    - output_layer : a list of numpy arrays containing the output of each layer
+    - scores_list : a list of numpy arrays containing the scores of each layer
     """
-    s1 = get_scores(data, weights[0], bias[0])
-    h1 = relu(s1)
-    s2 = get_scores(h1, weights[1], bias[1])
-    return s2, h1, s1 
 
+    output_layer = list()
+    scores_list = list()
+
+    # First layer
+    output_layer.append(np.copy(data)) # Copying the data to the output layer, the first layer 
+    scores_list.append(get_scores(data, weights[0], bias[0])) # Getting the scores for the first layer
+
+    # Iterating over the hidden layers
+    for i in range(1, len(weights)):
+        output_layer.append(relu(scores_list[i-1])) # Getting the output of the previous layer
+        scores_list.append(get_scores(output_layer[-1], weights[i], bias[i]))  
+
+    return output_layer, scores_list
 
 def softmax(s):
     """@docstring: 
@@ -187,79 +195,78 @@ def softmax(s):
     p = np.exp(s) / np.sum(np.exp(s), axis=0)
     return p
 
+def get_loss(data,labels,weight,bias):
+    _, scores_list = forward_pass(data, weight, bias)
+    p = softmax(scores_list[-1])
+    loss = np.sum(-np.log(np.sum(labels*p, axis=0)))
+    loss = loss/data.shape[1]
+    return loss
 
-def compute_accuracy(data,labels,weight,bias):
-    """@docstring:
-    Compute the accuracy of the model
-    Returns:
-    - accuracy: a float value between 0 and 1
-    """
-    s2, h1, s1 = forward_pass(data, weight, bias)
-    p = softmax(s2)
-    guess = np.argmax(p, axis=0)
-    correct = np.argmax(labels, axis=0)
-    accuracy = np.sum(guess == correct) / len(correct)
-    return accuracy
-
-
-def compute_loss(data,labels,weight,bias):
-    """@docstring:
-    Compute the loss of the model. THIS WAS TAKEN FROM CHATGPT-3 CODE
-    hoever verified by asking other classmates if they had similar code.
-    Returns:
-    - loss: a float value
-    """
-    s2, _, _ = forward_pass(data, weight, bias)
-    p = softmax(s2)
-    loss = -np.sum(np.log(np.sum(p * labels, axis=0))) / labels.shape[1]
-    print("Loss: ", loss)
-    return loss 
-
-
-def compute_cost(data,labels,weight,bias,reg):
-    """@docstring:
-    Compute the cost of the model
-    Returns:
-    - cost: a float value
-    """
-    loss = compute_loss(data,labels,weight,bias)
-    cost = loss + reg * (np.sum(weight[0]**2) + np.sum(weight[1]**2))
+def compute_cost(data,labels,weight,bias,reguliser):
+    loss = get_loss(data,labels,weight,bias)
+    cost = loss + reguliser * np.sum([np.sum(np.square(w)) for w in weight])
     return cost
 
+def compute_accuracy(data,labels,weight,bias):
+    _, scores_list = forward_pass(data, weight, bias)
+    p = softmax(scores_list[-1]) # get s2 from the forward pass
+    pred = np.argmax(p, axis=0) # get the predicted class
+    acc = np.sum(pred == np.argmax(labels, axis=0)) / data.shape[1]
+    return acc
 
-def gradients(data, labels_val, weights, regulariser, probs):
+def backward_pass(data, labels, weight, reg, probs):
+    # Note: Inpired by the backward pass in the lecture notes of the course
+    # Also inpspired by other students from this course, as the forward pass was inspired by them,
+    # the  backward pass needed to be adjusted to the new implementation of the forward pass
     """@docstring:
-    Compute the gradients analytically, see lecture 4 slides 30 to 38 for more details.
-    ChatGPT-3 + Lecture slides + Github Copilot helped me a lot with this function. 
-    All code written below is my own however I did use the above resources to help me.
-    Scared of plagiarism so I am being very clear about this. 
+    Compute the backward pass for all the layers
     Returns:
-    - gradient_w : a list of numpy arrays containing the gradients of the weights
-    - gradient_b : a list of numpy arrays containing the gradients of the bias
+    - gradient_weights : a list of numpy arrays containing the gradients of the weights
+    - gradient_bias : a list of numpy arrays containing the gradients of the bias
     """
-    gradient_w = list()
-    gradient_b = list()
 
-    # Last layer --> Taken from the lecture
-    g = -(labels_val - probs)
-    gradient1_weight = g @ data[-1].T /data[0].shape[1] + 2 * regulariser * weights[-1]
-    gradient1_bias = np.sum(g, axis=1, keepdims=True)/data[0].shape[1]
-    gradient_w.append(gradient1_weight)
-    gradient_b.append(gradient1_bias)
+    gradient_weights = list() # list of gradients for weights from last to first layer
+    gradient_bias = list() # list of gradients for bias from last to first layer
 
-    # Backward pass to the remaining layers
-    for i in range(1, len(data)):
-        g = weights[-i].T @ g * (data[-i] > 0) # ReLU derivative = 1 if x > 0 else 0 
-        gradient_weight = g @ data[-i-1].T /data[0].shape[1] + 2 * regulariser * weights[-i-1]
-        gradient_bias = np.sum(g, axis=1, keepdims=True)/data[0].shape[1]
-        gradient_w.append(gradient_weight)
-        gradient_b.append(gradient_bias)
+    # Last layer gradient calculation
+    g = -(labels - probs) # gradient of the loss function with respect to the scores of the last layer
+    weight_gradient = (g @ data[-1].T) / data[0].shape[1] + 2 * reg * weight[-1] # gradient of the loss function with respect to the weights of the last layer
+    bias_gradient = np.sum(g, axis=1, keepdims=True) / data[0].shape[1] # gradient of the loss function with respect to the bias of the last layer
+    gradient_weights.append(weight_gradient)
+    gradient_bias.append(bias_gradient)
 
-    gradient_w.reverse()
-    gradient_b.reverse()
-
-    return gradient_w, gradient_b
     
+
+    # Rest of the layers gradient calculation
+    for i in range(1, len(data) -1):
+        g = weight[-i+1].T @ g 
+        ind = np.copy(data[-i+1]) # copy the output of the previous layer
+        ind[ind > 0] = 1 # ReLU derivative
+        g = g * ind # gradient of the loss function with respect to the scores of the current layer
+        weight_gradient = (g @ data[-i].T)/ data[0].shape[1] + 2 * reg * weight[-i] # gradient of the loss function with respect to the weights of the current layer
+        bias_gradient = np.sum(g, axis=1, keepdims=True) / data[0].shape[1] # gradient of the loss function with respect to the bias of the current layer
+        gradient_weights.append(weight_gradient)
+        gradient_bias.append(bias_gradient)
+
+    # Reversing the lists to get the gradients from first to last layer
+    gradient_weights.reverse()
+    gradient_bias.reverse()
+    return gradient_weights, gradient_bias
+
+def update_weights_bias(weights, bias, grad_w, grad_b, learning_rate):
+    """@docstring:
+    Update the weights and bias
+    Returns:
+    - weights : a list of numpy arrays containing the updated weights
+    - bias : a list of numpy arrays containing the updated bias
+    """
+    print("length of weights: ", len(weights))
+    print("length of weight[0]: ", len(weights[0]))
+    print("Length of grad_w: ", len(grad_w))
+
+    
+
+    return weights, bias   
 
 if __name__ == '__main__':
     # Getting started
@@ -276,19 +283,26 @@ if __name__ == '__main__':
     weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
 
     # Forward pass
-    s2, h1, s1 = forward_pass(data_train, weights, bias)
-    print("Shape of the scores for the second layer: ", s2.shape)
-    print("Shape of the ReLU activation function for the first layer: ", h1.shape)
-    print("Shape of the scores for the first layer: ", s1.shape)
+    output_layer, scores_list = forward_pass(data_train, weights, bias)
 
-    # Compute the accuracy of the model
-    accuracy = compute_accuracy(data_train, labels_train, weights, bias)    
+    # Softmax
+    p = softmax(scores_list[-1]) # get s2 from the forward pass
 
-    # Compute the loss of the model
-    loss = compute_loss(data_train, labels_train, weights, bias)
+    # get the accuracy
+    acc = compute_accuracy(data_train, labels_train, weights, bias)
+    print("Accuracy first: ", acc)
 
-    # Compute gradients
-    probs = softmax(s2)
-    gradient_w, gradient_b = gradients([data_train, h1], labels_train, weights, 0.001, probs)
+    # Gradient descent
+    gradient_weights, gradient_bias = backward_pass(output_layer, labels_train, weights, 0.0, p)
+
+    # Updating the weights and bias
+    weights, bias = update_weights_bias(weights, bias, gradient_weights, gradient_bias, learning_rate=0.01)
 
 
+    # compute the accuracy
+    acc = compute_accuracy(data_train, labels_train, weights, bias)
+    print("Accuracy second: ", acc)
+
+
+
+   
