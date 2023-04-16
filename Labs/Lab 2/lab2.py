@@ -235,10 +235,8 @@ def backward_pass(data, labels, weight, reg, probs):
     gradient_weights.append(weight_gradient)
     gradient_bias.append(bias_gradient)
 
-    
-
     # Rest of the layers gradient calculation
-    for i in range(1, len(data) -1):
+    for i in range(len(data) -1):
         g = weight[-i+1].T @ g 
         ind = np.copy(data[-i+1]) # copy the output of the previous layer
         ind[ind > 0] = 1 # ReLU derivative
@@ -260,13 +258,60 @@ def update_weights_bias(weights, bias, grad_w, grad_b, learning_rate):
     - weights : a list of numpy arrays containing the updated weights
     - bias : a list of numpy arrays containing the updated bias
     """
-    print("length of weights: ", len(weights))
-    print("length of weight[0]: ", len(weights[0]))
-    print("Length of grad_w: ", len(grad_w))
 
-    
+    for i in range(len(weights)):
+        weights[i] = weights[i] - learning_rate * grad_w[i]
+        bias[i] = bias[i] - learning_rate * grad_b[i]
 
     return weights, bias   
+
+
+def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
+    #One completed cycle is 2 * half_cycle iterations
+    current_cycle = int(current_iteration / (2 * half_cycle))  
+
+    # If the current iteration is in the first half of the cycle, the learning rate is increasing
+    if 2 * current_cycle * half_cycle <= current_iteration <= (2 * current_cycle + 1) * half_cycle:
+        return min_learning + ((current_iteration - 2 * current_cycle * half_cycle) / half_cycle) * (max_learning - min_learning)
+    
+    # If the current iteration is in the second half of the cycle, the learning rate is decreasing
+    if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
+        return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
+
+def batch_training(data_train, weights, bias, labels_train, learning_rate, reguliser, batch_size=100, epochs=1):
+    stepsize = 500
+    cycles_epoch = data_train.shape[1]/batch_size
+    eta_min = 0.00001
+    eta_max = 0.1
+    steps = 0
+
+    for epoch in range(epochs):
+        for batch in range(int(data_train.shape[1]/batch_size)):
+            start = batch * batch_size
+            end = (batch + 1) * batch_size
+            # Relued Layers and scores
+            layers, scores_list = forward_pass(data_train, weights, bias)
+            # Softmax
+            probs = softmax(scores_list[-1])
+            # Backward pass
+            grad_w, grad_b = backward_pass(layers, labels_train, weights, reguliser, probs)
+            # Update weights and bias
+            weights, bias = update_weights_bias(weights, bias, grad_w, grad_b, learning_rate)
+            learning_rate = cyclical_update(
+                (epoch * cycles_epoch + batch), stepsize, eta_min, eta_max )
+            steps += 1
+            if steps % 20 == 0:
+                acc = compute_accuracy(data_train, labels_train, weights, bias)
+                print("Step: ", steps, " Accuracy: ", acc)
+
+        
+
+        #compute the accuracy
+        #acc = compute_accuracy(data_train, labels_train, weights, bias)
+        #print("Epoch: ", epoch, " Accuracy: ", acc) 
+        # compute the loss
+        #loss = get_loss(data_train, labels_train, weights, bias)
+        #print("Epoch: ", epoch, " Loss: ", loss)  
 
 if __name__ == '__main__':
     # Getting started
@@ -282,26 +327,8 @@ if __name__ == '__main__':
     # Initializing the weights and bias
     weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
 
-    # Forward pass
-    output_layer, scores_list = forward_pass(data_train, weights, bias)
-
-    # Softmax
-    p = softmax(scores_list[-1]) # get s2 from the forward pass
-
-    # get the accuracy
-    acc = compute_accuracy(data_train, labels_train, weights, bias)
-    print("Accuracy first: ", acc)
-
-    # Gradient descent
-    gradient_weights, gradient_bias = backward_pass(output_layer, labels_train, weights, 0.0, p)
-
-    # Updating the weights and bias
-    weights, bias = update_weights_bias(weights, bias, gradient_weights, gradient_bias, learning_rate=0.01)
-
-
-    # compute the accuracy
-    acc = compute_accuracy(data_train, labels_train, weights, bias)
-    print("Accuracy second: ", acc)
+    # Training the network
+    batch_training(data_train, weights, bias, labels_train, learning_rate=0, reguliser=0.01, batch_size=1000, epochs=200)
 
 
 
