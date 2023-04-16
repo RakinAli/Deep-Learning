@@ -333,7 +333,7 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
-def batch_training(data_train, weights, bias, labels_train, learning_rate, reguliser, batch_size=100, cycles=2):
+def batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser, batch_size=100, cycles=2, do_all):
 
     """Quick maths:
     A total circle is 2 * stepsize iterations
@@ -341,19 +341,31 @@ def batch_training(data_train, weights, bias, labels_train, learning_rate, regul
     Epochs can we either hardcode or calculate as total_updates / how many batches needed to go through the whole dataset
     Number of batches needed is equivalent to number of updates needed. Updating learning rate every iteration
     """
+    # Hyperparameters
+    eta_min = 0.00001
+    eta_max = 0.1
     stepsize = 800
     total_updates = 2 * stepsize * cycles # Total number of updates
     epochs = int(total_updates / (data_train.shape[1]/batch_size)) # Total number of epochs
     updates_per_epoch = int(data_train.shape[1]/batch_size) # Number of updates per epoch
-    eta_min = 0.00001
-    eta_max = 0.1
+    
 
     # For plotting
     update_steps = 0
-    accuracies_list = list()
-    cost_list = list()
-    loss_list = list()
-    best_accuracy = 0
+    train_accuracies_list = list()
+    train_best_accuracy = 0
+    train_cost_list = list()
+    train_loss_list = list()
+
+    validation_accuracies_list = list()
+    validation_best_accuracy = 0
+    validation_cost_list = list()
+    validation_loss_list = list()
+
+    test_accuracies_list = list()
+    test_best_accuracy = 0
+    test_cost_list = list()
+    test_loss_list = list()
 
     total_iterations = epochs * updates_per_epoch # Total number of iterations
 
@@ -378,17 +390,42 @@ def batch_training(data_train, weights, bias, labels_train, learning_rate, regul
             update_steps += 1
             if update_steps % 20 == 0:
                 # round the accuracy to 2 decimal places
-                acc = round(compute_accuracy(data_train, labels_train, weights, bias), 2)
-                loss = get_loss(data_train, labels_train, weights, bias)
-                cost = compute_cost(data_train, labels_train, weights, bias, reguliser)
+                acc_train= round(compute_accuracy(data_train, labels_train, weights, bias), 2)
+                loss_train = get_loss(data_train, labels_train, weights, bias)
+                cost_train  = compute_cost(data_train, labels_train, weights, bias, reguliser)
+                train_accuracies_list.append(acc_train)
+                train_loss_list.append(train_loss_list)
+                train_cost_list.append(cost_train)
+                print("Accuracy: ", acc_train," Update steps: ", update_steps)
+                if do_all:
+                    acc_val = round(compute_accuracy(data_val, labels_val, weights, bias), 2)
+                    loss_val = get_loss(data_val, labels_val, weights, bias)
+                    cost_val = compute_cost(data_val, labels_val, weights, bias, reguliser)
+                    validation_accuracies_list.append(acc_val)
+                    validation_loss_list.append(loss_val)
+                    validation_cost_list.append(cost_val)
 
-                print("Accuracy: ", acc," Update steps: ", update_steps)
-                accuracies_list.append(acc)
-                loss_list.append(loss)
-                cost_list.append(cost)
-    
-    best_accuracy = max(accuracies_list)
-    return best_accuracy, accuracies_list, loss_list, cost_list
+                    acc_test = round(compute_accuracy(data_test, labels_test, weights, bias), 2)
+                    loss_test = get_loss(data_test, labels_test, weights, bias)
+                    cost_test = compute_cost(data_test, labels_test, weights, bias, reguliser)
+                    test_accuracies_list.append(acc_test)
+                    test_loss_list.append(loss_test)
+                    test_cost_list.append(cost_test)
+
+    train_best_accuracy = max(train_accuracies_list)
+    return train_best_accuracy, train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list
+
+def find_best_reguliser(data_train, labels_train, data_val, labels_val, weights, bias, learning_rate, reguliser_list, batch_size=100, cycles=2):
+    best_reguliser = 0
+    best_accuracy = 0
+    for reguliser in reguliser_list:
+        print("###Training with reguliser: ", reguliser)
+        best_accuracy, accuracies_list, loss_list, cost_list = batch_training(data_train, weights, bias, labels_train, learning_rate, reguliser, batch_size, cycles)
+        print("###Best accuracy: ", best_accuracy)
+        if best_accuracy > best_accuracy:
+            best_accuracy = best_accuracy
+            best_reguliser = reguliser
+    return best_reguliser, best_accuracy
 
 if __name__ == '__main__':
     # Getting started
@@ -403,9 +440,10 @@ if __name__ == '__main__':
     # Initializing the weights and bias
     weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
     
-
     # Training the network
-    best_accuracy, accuracies_list, loss_list, cost_list = batch_training(data_train, weights, bias, labels_train, learning_rate=0.1, reguliser=0.001, batch_size=100, cycles=2)
+    reguliser_list = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100]
+    do_all = False
+    best_acc, acc_list, loss_list, cost_list = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser=0.1, batch_size=100, cycles=3, do_all=do_all)
 
 
 
