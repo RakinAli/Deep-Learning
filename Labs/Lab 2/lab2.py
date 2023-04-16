@@ -7,7 +7,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-from prettytable import PrettyTable
+import csv
+import sys
 
 PATH = "Datasets/cifar-10-batches-py/"
 batches= ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
@@ -238,6 +239,7 @@ def forward_pass(data, weights, bias):
 
     return output_layer, scores_list
 
+
 def softmax(s):
     """@docstring: 
     Compute the softmax activation function
@@ -248,6 +250,7 @@ def softmax(s):
     p = np.exp(s) / np.sum(np.exp(s), axis=0)
     return p
 
+
 def get_loss(data,labels,weight,bias):
     _, scores_list = forward_pass(data, weight, bias)
     p = softmax(scores_list[-1])
@@ -255,10 +258,12 @@ def get_loss(data,labels,weight,bias):
     loss = loss/data.shape[1]
     return loss
 
+
 def compute_cost(data,labels,weight,bias,reguliser):
     loss = get_loss(data,labels,weight,bias)
     cost = loss + reguliser * np.sum([np.sum(np.square(w)) for w in weight])
     return cost
+
 
 def compute_accuracy(data,labels,weight,bias):
     _, scores_list = forward_pass(data, weight, bias)
@@ -267,7 +272,6 @@ def compute_accuracy(data,labels,weight,bias):
     acc = np.sum(pred == np.argmax(labels, axis=0)) / data.shape[1]
     return acc
 
-    
 
 def backward_pass(data, labels, weight, reg, probs):
     # Note: Inpired by the backward pass in the lecture notes of the course
@@ -306,6 +310,7 @@ def backward_pass(data, labels, weight, reg, probs):
     gradient_bias.reverse()
     return gradient_weights, gradient_bias
 
+
 def update_weights_bias(weights, bias, grad_w, grad_b, learning_rate):
     """@docstring:
     Update the weights and bias
@@ -333,8 +338,7 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
-def batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser, batch_size=100, cycles=2, do_all):
-
+def batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser, batch_size=100, cycles=2, do_all=True):
     """Quick maths:
     A total circle is 2 * stepsize iterations
     Stepsize is half the number of iterations in a cycle and is defined by us (500)
@@ -344,12 +348,11 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     # Hyperparameters
     eta_min = 0.00001
     eta_max = 0.1
-    stepsize = 800
+    stepsize = 2 * data_train.shape[1]/batch_size
     total_updates = 2 * stepsize * cycles # Total number of updates
     epochs = int(total_updates / (data_train.shape[1]/batch_size)) # Total number of epochs
     updates_per_epoch = int(data_train.shape[1]/batch_size) # Number of updates per epoch
     
-
     # For plotting
     update_steps = 0
     train_accuracies_list = list()
@@ -358,7 +361,6 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     train_loss_list = list()
 
     validation_accuracies_list = list()
-    validation_best_accuracy = 0
     validation_cost_list = list()
     validation_loss_list = list()
 
@@ -370,7 +372,10 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     total_iterations = epochs * updates_per_epoch # Total number of iterations
 
     print("Total number of steps needed: ", total_iterations)
-    print("###Starting training...")
+    if do_all:
+        print("###Starting training, validation and testing...")
+    else:
+        print("###Starting training...")
     for epoch in range(epochs):
         for batch in range(int(data_train.shape[1]/batch_size)):
             start = batch * batch_size
@@ -391,10 +396,10 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
             if update_steps % 20 == 0:
                 # round the accuracy to 2 decimal places
                 acc_train= round(compute_accuracy(data_train, labels_train, weights, bias), 2)
-                loss_train = get_loss(data_train, labels_train, weights, bias)
+                train_loss = get_loss(data_train, labels_train, weights, bias)
                 cost_train  = compute_cost(data_train, labels_train, weights, bias, reguliser)
                 train_accuracies_list.append(acc_train)
-                train_loss_list.append(train_loss_list)
+                train_loss_list.append(train_loss)
                 train_cost_list.append(cost_train)
                 print("Accuracy: ", acc_train," Update steps: ", update_steps)
                 if do_all:
@@ -415,21 +420,44 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     train_best_accuracy = max(train_accuracies_list)
     return train_best_accuracy, train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list
 
-def find_best_reguliser(data_train, labels_train, data_val, labels_val, weights, bias, learning_rate, reguliser_list, batch_size=100, cycles=2):
-    best_reguliser = 0
-    best_accuracy = 0
-    for reguliser in reguliser_list:
-        print("###Training with reguliser: ", reguliser)
-        best_accuracy, accuracies_list, loss_list, cost_list = batch_training(data_train, weights, bias, labels_train, learning_rate, reguliser, batch_size, cycles)
-        print("###Best accuracy: ", best_accuracy)
-        if best_accuracy > best_accuracy:
-            best_accuracy = best_accuracy
-            best_reguliser = reguliser
-    return best_reguliser, best_accuracy
+
+# @TODO FIX THIS TO MAKE IT BETTER
+def find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser_list, batch_size=100, cycles=1, do_all=False):
+    # Three best regulisers
+    three_best_regulisers = list()
+
+    for reg in range(len(reguliser_list)):
+        print("###Starting training for reguliser: ", reguliser_list[reg])
+        train_best_accuracy, _, _, _, _, _, _, _, _, _ = batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser_list[reg], batch_size, cycles, do_all)
+        three_best_regulisers.append([reguliser_list[reg], train_best_accuracy])
+        print("###Best accuracy for reguliser: ", reguliser_list[reg], " is: ", train_best_accuracy)
+    
+    three_best_regulisers.sort(key=lambda x: x[1], reverse=True)  
+    # Convert the list to a dic
+    three_best_regulisers = dict(three_best_regulisers)
+
+    # Convert dict to a .csv file
+    with open('three_best_regulisers.csv', 'w') as f:
+        for key in three_best_regulisers.keys():
+            f.write("%s,%s" % (key, three_best_regulisers[key]))
+    
+    # Get the best reguliser which had the highest accuracy
+    best_reguliser = list(three_best_regulisers.keys())[0]
+    print("###Best reguliser is: ", best_reguliser)
+   
+    return three_best_regulisers, best_reguliser
 
 if __name__ == '__main__':
-    # Getting started
-    data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started_all()
+    print("Starting the program...")
+    print("Are you doing the lamda search? (y/n)")
+    lamda_search = input()
+    if lamda_search == "y":
+        data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started_all()
+    elif lamda_search == "n":
+        data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started()
+    else: 
+        print("Wrong input, please try again")
+        sys.exit()
 
     # Normalising the data
     data_train, data_val, data_test = normalise_all(data_train, data_val, data_test) 
@@ -439,14 +467,16 @@ if __name__ == '__main__':
 
     # Initializing the weights and bias
     weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
+
     
-    # Training the network
-    reguliser_list = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100]
-    do_all = False
-    best_acc, acc_list, loss_list, cost_list = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser=0.1, batch_size=100, cycles=3, do_all=do_all)
+    # Random search for the best reguliser
+    if lamda_search == "y":
+        reguliser_list = list()
+        for random_lamdas in range(8):
+            reguliser_list.append(pow(10,np.random.uniform(-5, 1)))
 
+        # Finding the best reguliser--> returns a dict with the three best regulisers 
+        three_reguliser,best_reg = find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser_list=reguliser_list, batch_size=1000, cycles=1, do_all=False)  
 
-
-
-
-   
+    # Training the best reguliser
+    best_acc, acc_list, loss_list, cost_list = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser=best_reg, batch_size=100, cycles=3, do_all=True)
