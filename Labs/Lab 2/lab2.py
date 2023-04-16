@@ -9,11 +9,61 @@ import matplotlib.pyplot as plt
 import pickle
 from prettytable import PrettyTable
 
+PATH = "Datasets/cifar-10-batches-py/"
+batches= ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
+
 
 def LoadBatch(filename):
     with open(filename, 'rb') as fo:
         dict = pickle.load(fo, encoding='latin1')
     return dict
+
+
+def getting_started_all():
+    """@docstring:
+    This function will help you get started on the CIFAR-10 dataset.
+    Reads all the batches to do training and validation.
+    For validation, picks random 5000 images from any of the batches.
+    Reads the test_batch to do testing
+    Returns:
+    - data_train: A numpy array of shape (3072, 45000) containing the training data.
+    - labels_train: A numpy array of shape (45000,) containing the training labels.
+    - data_val: A numpy array of shape (3072, 5000) containing the validation data. 
+    - labels_val: A numpy array of shape (5000,) containing the validation labels.
+    - data_test: A numpy array of shape (3072, 10000) containing the test data.
+    - labels_test: A numpy array of shape (10000,) containing the test labels.
+    - labels: A list of length 10 containing the names of the classes.
+    """
+    # Read the training data for all batches
+    for i in range(len(batches)):
+        if i == 0:
+            batch = LoadBatch(PATH + batches[i])
+            data_train = batch['data']
+            labels_train = batch['labels']
+        else:
+            batch = LoadBatch(PATH + batches[i])
+            data_train = np.vstack((data_train, batch['data'])) # Stack the data vertically
+            labels_train = np.hstack((labels_train, batch['labels'])) # Stack the labels horizontally
+                
+    # Read the test data
+    batch = LoadBatch(PATH + 'test_batch')
+    data_test = batch['data']
+    labels_test = batch['labels']
+
+    # Create the validation data
+    random_indices = np.random.choice(data_train.shape[0], 5000, replace=False)
+    data_val = data_train[random_indices]
+    labels_val = labels_train[random_indices]  
+    data_train = np.delete(data_train, random_indices, axis=0) # Delete the validation data from the training data
+    labels_train = np.delete(labels_train, random_indices, axis=0) # Delete the validation labels from the training labels
+    
+    # Grabbing the labels names
+    labels = LoadBatch(PATH + 'batches.meta')['label_names']
+
+    return data_train, labels_train, data_val, labels_val, data_test, labels_test, labels
+    
+        
+
 
 
 def getting_started():
@@ -55,6 +105,7 @@ def getting_started():
     labels = LoadBatch("Datasets/cifar-10-batches-py/" +
                        'batches.meta')['label_names']
     return data_train, labels_train, data_val, labels_val, data_test, labels_test, labels
+
 
 
 def normalise(data, mean, std):
@@ -164,6 +215,8 @@ def forward_pass(data, weights, bias):
     # Also inpspired by other students from this course,
     # Previuosly I had a different implementation of the forward pass but it was hard coded to 2 layers
     # Afterwards when I saw the implementation of other students I decided to implement it in a more general way
+    # Therefore other parts, backpropagation was modified to work with this implementation
+    # 
     """@docstring:
     Compute the forward pass for all the layers
     Returns:
@@ -213,6 +266,8 @@ def compute_accuracy(data,labels,weight,bias):
     pred = np.argmax(p, axis=0) # get the predicted class
     acc = np.sum(pred == np.argmax(labels, axis=0)) / data.shape[1]
     return acc
+
+    
 
 def backward_pass(data, labels, weight, reg, probs):
     # Note: Inpired by the backward pass in the lecture notes of the course
@@ -278,57 +333,81 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
-def batch_training(data_train, weights, bias, labels_train, learning_rate, reguliser, batch_size=100, epochs=1):
-    stepsize = 500
-    cycles_epoch = data_train.shape[1]/batch_size
+def batch_training(data_train, weights, bias, labels_train, learning_rate, reguliser, batch_size=100, cycles=2):
+
+    """Quick maths:
+    A total circle is 2 * stepsize iterations
+    Stepsize is half the number of iterations in a cycle and is defined by us (500)
+    Epochs can we either hardcode or calculate as total_updates / how many batches needed to go through the whole dataset
+    Number of batches needed is equivalent to number of updates needed. Updating learning rate every iteration
+    """
+    stepsize = 800
+    total_updates = 2 * stepsize * cycles # Total number of updates
+    epochs = int(total_updates / (data_train.shape[1]/batch_size)) # Total number of epochs
+    updates_per_epoch = int(data_train.shape[1]/batch_size) # Number of updates per epoch
     eta_min = 0.00001
     eta_max = 0.1
-    steps = 0
 
+    # For plotting
+    update_steps = 0
+    accuracies_list = list()
+    cost_list = list()
+    loss_list = list()
+    best_accuracy = 0
+
+    total_iterations = epochs * updates_per_epoch # Total number of iterations
+
+    print("Total number of steps needed: ", total_iterations)
+    print("###Starting training...")
     for epoch in range(epochs):
         for batch in range(int(data_train.shape[1]/batch_size)):
             start = batch * batch_size
             end = (batch + 1) * batch_size
             # Relued Layers and scores
-            layers, scores_list = forward_pass(data_train, weights, bias)
+            layers, scores_list = forward_pass(data_train[:,start:end], weights, bias)
             # Softmax
             probs = softmax(scores_list[-1])
             # Backward pass
-            grad_w, grad_b = backward_pass(layers, labels_train, weights, reguliser, probs)
+            grad_w, grad_b = backward_pass(
+                layers, labels_train[:, start:end], weights, reguliser, probs)
             # Update weights and bias
             weights, bias = update_weights_bias(weights, bias, grad_w, grad_b, learning_rate)
-            learning_rate = cyclical_update(
-                (epoch * cycles_epoch + batch), stepsize, eta_min, eta_max )
-            steps += 1
-            if steps % 20 == 0:
-                acc = compute_accuracy(data_train, labels_train, weights, bias)
-                print("Step: ", steps, " Accuracy: ", acc)
+            # Update learning rate
+            current_iteration = epoch * updates_per_epoch + batch
+            learning_rate = cyclical_update(current_iteration, stepsize, eta_min, eta_max)
+            update_steps += 1
+            if update_steps % 20 == 0:
+                # round the accuracy to 2 decimal places
+                acc = round(compute_accuracy(data_train, labels_train, weights, bias), 2)
+                loss = get_loss(data_train, labels_train, weights, bias)
+                cost = compute_cost(data_train, labels_train, weights, bias, reguliser)
 
-        
-
-        #compute the accuracy
-        #acc = compute_accuracy(data_train, labels_train, weights, bias)
-        #print("Epoch: ", epoch, " Accuracy: ", acc) 
-        # compute the loss
-        #loss = get_loss(data_train, labels_train, weights, bias)
-        #print("Epoch: ", epoch, " Loss: ", loss)  
+                print("Accuracy: ", acc," Update steps: ", update_steps)
+                accuracies_list.append(acc)
+                loss_list.append(loss)
+                cost_list.append(cost)
+    
+    best_accuracy = max(accuracies_list)
+    return best_accuracy, accuracies_list, loss_list, cost_list
 
 if __name__ == '__main__':
     # Getting started
-    data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started()
-    #print("Shape of the training data: ", data_train.shape)
+    data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started_all()
 
     # Normalising the data
-    data_train, data_val, data_test = normalise_all( data_train, data_val, data_test) 
+    data_train, data_val, data_test = normalise_all(data_train, data_val, data_test) 
 
     # One hot encoding the labels
     labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
     # Initializing the weights and bias
     weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
+    
 
     # Training the network
-    batch_training(data_train, weights, bias, labels_train, learning_rate=0, reguliser=0.01, batch_size=1000, epochs=200)
+    best_accuracy, accuracies_list, loss_list, cost_list = batch_training(data_train, weights, bias, labels_train, learning_rate=0.1, reguliser=0.001, batch_size=100, cycles=2)
+
+
 
 
 
