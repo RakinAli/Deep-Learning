@@ -525,5 +525,5 @@ if __name__ == '__main__':
         best_lamda = 0.01
     # Training the best reguliser
     best_acc = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test,
-                              learning_rate=0.0, reguliser=0.007700753202063438, batch_size=100, cycles=3, do_plot=True, filename="Results_pics/Maxed_Reg_results.png")
+                              learning_rate=0.00001, reguliser=0.007700753202063438, batch_size=100, cycles=3, do_plot=True, filename="Maxed_Reg_results.png")
 
