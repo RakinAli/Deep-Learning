@@ -338,7 +338,8 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
-def batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser, batch_size=100, cycles=2, do_all=True):
+
+def batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser, batch_size=100, cycles=2, do_plot=True):
     """Quick maths:
     A total circle is 2 * stepsize iterations
     Stepsize is half the number of iterations in a cycle and is defined by us (500)
@@ -359,21 +360,22 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     train_best_accuracy = 0
     train_cost_list = list()
     train_loss_list = list()
-
+    # For plotting
     validation_accuracies_list = list()
     validation_cost_list = list()
     validation_loss_list = list()
-
+    # For plotting
     test_accuracies_list = list()
     test_best_accuracy = 0
     test_cost_list = list()
     test_loss_list = list()
+    steps_list = list()
 
     total_iterations = epochs * updates_per_epoch # Total number of iterations
 
     print("Total number of steps needed: ", total_iterations)
-    if do_all:
-        print("###Starting training, validation and testing...")
+    if do_plot:
+        print("Plotting will be done, this may take a while...")
     else:
         print("###Starting training...")
     for epoch in range(epochs):
@@ -395,31 +397,52 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
             update_steps += 1
             if update_steps % 20 == 0:
                 # round the accuracy to 2 decimal places
-                acc_train= round(compute_accuracy(data_train, labels_train, weights, bias), 2)
-                train_loss = get_loss(data_train, labels_train, weights, bias)
-                cost_train  = compute_cost(data_train, labels_train, weights, bias, reguliser)
+                acc_train= round(compute_accuracy(data_train, labels_train, weights, bias), 3)
                 train_accuracies_list.append(acc_train)
-                train_loss_list.append(train_loss)
-                train_cost_list.append(cost_train)
+                if do_plot:
+                    steps_list.append(update_steps)
+                    train_cost_list.append(compute_cost(data_train, labels_train, weights, bias, reguliser))
+                    train_loss_list.append(get_loss(data_train, labels_train, weights, bias))
+
+                    validation_accuracies_list.append(round(compute_accuracy(data_val, label_val, weights, bias), 3)) 
+                    validation_cost_list.append(compute_cost(data_val, label_val, weights, bias, reguliser))
+                    validation_loss_list.append(get_loss(data_val, label_val, weights, bias))
+
+                    test_accuracies_list.append(round(compute_accuracy(data_test, labels_test, weights, bias), 3))
+                    test_cost_list.append(compute_cost(data_test, labels_test, weights, bias, reguliser))
+                    test_loss_list.append(get_loss(data_test, labels_test, weights, bias))                
                 print("Accuracy: ", acc_train," Update steps: ", update_steps)
-                if do_all:
-                    acc_val = round(compute_accuracy(data_val, labels_val, weights, bias), 2)
-                    loss_val = get_loss(data_val, labels_val, weights, bias)
-                    cost_val = compute_cost(data_val, labels_val, weights, bias, reguliser)
-                    validation_accuracies_list.append(acc_val)
-                    validation_loss_list.append(loss_val)
-                    validation_cost_list.append(cost_val)
-
-                    acc_test = round(compute_accuracy(data_test, labels_test, weights, bias), 2)
-                    loss_test = get_loss(data_test, labels_test, weights, bias)
-                    cost_test = compute_cost(data_test, labels_test, weights, bias, reguliser)
-                    test_accuracies_list.append(acc_test)
-                    test_loss_list.append(loss_test)
-                    test_cost_list.append(cost_test)
-
     train_best_accuracy = max(train_accuracies_list)
-    return train_best_accuracy, train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list
 
+    if do_plot:
+        do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list)
+    return train_best_accuracy,
+    
+
+
+def do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list):
+    # Plotting
+    plt.figure(figsize=(20, 10))
+    plt.subplot(2, 2, 1)
+    plt.plot(steps_list, train_accuracies_list, label="Training accuracy")
+    plt.plot(steps_list, validation_accuracies_list, label="Validation accuracy")
+    plt.plot(steps_list, test_accuracies_list, label="Test accuracy")
+    plt.title("Accuracy")
+    plt.legend()
+    plt.subplot(2, 2, 2)
+    plt.plot(steps_list, train_loss_list, label="Training loss")
+    plt.plot(steps_list, validation_loss_list, label="Validation loss")
+    plt.plot(steps_list, test_loss_list, label="Test loss")
+    plt.title("Loss")
+    plt.legend()
+    plt.subplot(2, 2, 3)
+    plt.plot(steps_list, train_cost_list, label="Training cost")
+    plt.plot(steps_list, validation_cost_list, label="Validation cost")
+    plt.plot(steps_list, test_cost_list, label="Test cost")
+    plt.title("Cost")
+    plt.legend()
+    plt.savefig("Results_pics/results.png")
+    plt.show()
 
 # @TODO FIX THIS TO MAKE IT BETTER
 def find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser_list, batch_size=100, cycles=1, do_all=False):
@@ -428,7 +451,7 @@ def find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_t
 
     for reg in range(len(reguliser_list)):
         print("###Starting training for reguliser: ", reguliser_list[reg])
-        train_best_accuracy, _, _, _, _, _, _, _, _, _ = batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser_list[reg], batch_size, cycles, do_all)
+        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser_list[reg], batch_size, cycles, do_all)
         three_best_regulisers.append([reguliser_list[reg], train_best_accuracy])
         print("###Best accuracy for reguliser: ", reguliser_list[reg], " is: ", train_best_accuracy)
     
@@ -447,6 +470,9 @@ def find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_t
    
     return three_best_regulisers, best_reguliser
 
+
+
+
 if __name__ == '__main__':
     print("Starting the program...")
     print("Are you doing the lamda search? (y/n)")
@@ -458,7 +484,17 @@ if __name__ == '__main__':
     else: 
         print("Wrong input, please try again")
         sys.exit()
-
+    
+    print("Do you want to do plotting? (y/n)")
+    do_plot = input()
+    if do_plot == "y":
+        do_plot = True
+    elif do_plot == "n":
+        do_plot = False
+    else:
+        print("Wrong input, please try again")
+        sys.exit()
+    
     # Normalising the data
     data_train, data_val, data_test = normalise_all(data_train, data_val, data_test) 
 
@@ -476,7 +512,8 @@ if __name__ == '__main__':
             reguliser_list.append(pow(10,np.random.uniform(-5, 1)))
 
         # Finding the best reguliser--> returns a dict with the three best regulisers 
-        three_reguliser,best_reg = find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser_list=reguliser_list, batch_size=1000, cycles=1, do_all=False)  
+        #three_reguliser,best_reg = find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser_list=reguliser_list, batch_size=1000, cycles=1, do_all=False)  
 
     # Training the best reguliser
-    best_acc, acc_list, loss_list, cost_list = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser=best_reg, batch_size=100, cycles=3, do_all=True)
+    best_acc, acc_list, loss_list, cost_list = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.0, reguliser=0.001, batch_size=100, cycles=3, do_plot=True)
+
