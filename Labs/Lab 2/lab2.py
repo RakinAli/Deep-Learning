@@ -62,9 +62,6 @@ def getting_started_all():
     labels = LoadBatch(PATH + 'batches.meta')['label_names']
 
     return data_train, labels_train, data_val, labels_val, data_test, labels_test, labels
-    
-        
-
 
 
 def getting_started():
@@ -272,7 +269,6 @@ def compute_accuracy(data,labels,weight,bias):
     acc = np.sum(pred == np.argmax(labels, axis=0)) / data.shape[1]
     return acc
 
-
 def backward_pass(data, labels, weight, reg, probs):
     # Note: Inpired by the backward pass in the lecture notes of the course
     # Also inpspired by other students from this course, as the forward pass was inspired by them,
@@ -310,7 +306,6 @@ def backward_pass(data, labels, weight, reg, probs):
     gradient_bias.reverse()
     return gradient_weights, gradient_bias
 
-
 def update_weights_bias(weights, bias, grad_w, grad_b, learning_rate):
     """@docstring:
     Update the weights and bias
@@ -325,7 +320,6 @@ def update_weights_bias(weights, bias, grad_w, grad_b, learning_rate):
 
     return weights, bias   
 
-
 def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     #One completed cycle is 2 * half_cycle iterations
     current_cycle = int(current_iteration / (2 * half_cycle))  
@@ -338,8 +332,7 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
-
-def batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser, batch_size=100, cycles=2, do_plot=True):
+def batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser, batch_size=100, cycles=2, do_plot=True,filename=""):
     """Quick maths:
     A total circle is 2 * stepsize iterations
     Stepsize is half the number of iterations in a cycle and is defined by us (500)
@@ -415,12 +408,11 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     train_best_accuracy = max(train_accuracies_list)
 
     if do_plot:
-        do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list)
+        do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list,name_of_file=filename)
     return train_best_accuracy,
     
 
-
-def do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list):
+def do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list,name_of_file=""):
     # Plotting
     plt.figure(figsize=(20, 10))
     plt.subplot(2, 2, 1)
@@ -441,36 +433,55 @@ def do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validat
     plt.plot(steps_list, test_cost_list, label="Test cost")
     plt.title("Cost")
     plt.legend()
-    plt.savefig("Results_pics/results.png")
+    plt.savefig("Results_pics/" + name_of_file + ".png")
     plt.show()
 
-# @TODO FIX THIS TO MAKE IT BETTER
-def find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser_list, batch_size=100, cycles=1, do_all=False):
-    # Three best regulisers
-    three_best_regulisers = list()
 
-    for reg in range(len(reguliser_list)):
-        print("###Starting training for reguliser: ", reguliser_list[reg])
-        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, label_val, labels_test, learning_rate, reguliser_list[reg], batch_size, cycles, do_all)
-        three_best_regulisers.append([reguliser_list[reg], train_best_accuracy])
-        print("###Best accuracy for reguliser: ", reguliser_list[reg], " is: ", train_best_accuracy)
+def large_lamda_search(how_many,data_train, data_val, data_test, labels_train, labels_val, labels_test, weights, bias):
+    lamda_list= list()
+    accuracy_list = list()
+    three_lamdas = list()
+    three_accuracy = list()
+    for lamdas in range(how_many):
+        random_number = np.random.uniform(-5, -1)
+        lamda = 10**random_number
+        lamda_list.append(lamda)
+
+    lamda_list.sort()
+    for reguliser in lamda_list:
+        print("Lamda: ", reguliser)
+        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0, reguliser=reguliser, batch_size=1000, cycles=1, do_plot=False, filename="" )
+        accuracy_list.append(train_best_accuracy)
     
-    three_best_regulisers.sort(key=lambda x: x[1], reverse=True)  
-    # Convert the list to a dic
-    three_best_regulisers = dict(three_best_regulisers)
+    # Get the best lamdas and their respective accuracies and store them in a list
+    for i in range(3):
+        best_lamda = lamda_list[accuracy_list.index(max(accuracy_list))]
+        best_accuracy = max(accuracy_list)
+        three_lamdas.append(best_lamda)
+        three_accuracy.append(best_accuracy)
+        accuracy_list.remove(best_accuracy)
+        lamda_list.remove(best_lamda) 
 
-    # Convert dict to a .csv file
-    with open('three_best_regulisers.csv', 'w') as f:
-        for key in three_best_regulisers.keys():
-            f.write("%s,%s" % (key, three_best_regulisers[key]))
+    # Store the best lamdas and their 
+    with open("data/lamda_search.txt", "w") as f:
+        f.write("Lamda: " + str(three_lamdas) + " Accuracy: " + str(three_accuracy))
+
+    return three_lamdas, three_accuracy
+
+
+def narrow_lamda_search(lamda_list, data_val, data_test, labels_train, labels_val, labels_test, weights, bias):
+    accuracy_list = list()
+    for reguliser in lamda_list:
+        print("Lamda: ", reguliser)
+        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0, reguliser=reguliser, batch_size=1000, cycles=3, do_plot=True, filename="lamda_"+str(reguliser))
+        accuracy_list.append(train_best_accuracy)
     
-    # Get the best reguliser which had the highest accuracy
-    best_reguliser = list(three_best_regulisers.keys())[0]
-    print("###Best reguliser is: ", best_reguliser)
-   
-    return three_best_regulisers, best_reguliser
+    # Find the best lamda and its accuracy
+    best_lamda = lamda_list[accuracy_list.index(max(accuracy_list))]
+    best_accuracy = max(accuracy_list)
+    print("Best lamda: ", best_lamda, " Best accuracy: ", best_accuracy)
 
-
+    return best_lamda
 
 
 if __name__ == '__main__':
@@ -485,7 +496,7 @@ if __name__ == '__main__':
         print("Wrong input, please try again")
         sys.exit()
     
-    print("Do you want to do plotting? (y/n)")
+    print("Do you want to do plotting at the end? (y/n)")
     do_plot = input()
     if do_plot == "y":
         do_plot = True
@@ -504,16 +515,15 @@ if __name__ == '__main__':
     # Initializing the weights and bias
     weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
 
-    
-    # Random search for the best reguliser
     if lamda_search == "y":
-        reguliser_list = list()
-        for random_lamdas in range(8):
-            reguliser_list.append(pow(10,np.random.uniform(-5, 1)))
-
-        # Finding the best reguliser--> returns a dict with the three best regulisers 
-        #three_reguliser,best_reg = find_best_reguliser(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.1, reguliser_list=reguliser_list, batch_size=1000, cycles=1, do_all=False)  
-
+        # Searching for the best lamda
+        three_lamdas, three_accuracy = large_lamda_search(10,data_train, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
+        print("Best lamdas: ", three_lamdas)
+        print("Best accuracies: ", three_accuracy)
+        best_reg = narrow_lamda_search(three_lamdas, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
+    else:
+        best_lamda = 0.01
     # Training the best reguliser
-    best_acc, acc_list, loss_list, cost_list = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.0, reguliser=0.001, batch_size=100, cycles=3, do_plot=True)
+    best_acc = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test,
+                              learning_rate=0.0, reguliser=0.007700753202063438, batch_size=100, cycles=3, do_plot=True, filename="Results_pics/Maxed_Reg_results.png")
 
