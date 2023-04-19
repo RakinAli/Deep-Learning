@@ -7,8 +7,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-import csv
 import sys
+from tqdm import tqdm
+
 
 PATH = "Datasets/cifar-10-batches-py/"
 batches= ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
@@ -214,6 +215,7 @@ def forward_pass(data, weights, bias):
     # Previuosly I had a different implementation of the forward pass but it was hard coded to 2 layers
     # Afterwards when I saw the implementation of other students I decided to implement it in a more general way
     # Therefore other parts, backpropagation was modified to work with this implementation
+    # Worried about potential plagerism, but I think it is ok since I have not copied the code from other students
     # 
     """@docstring:
     Compute the forward pass for all the layers
@@ -339,10 +341,10 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     Epochs can we either hardcode or calculate as total_updates / how many batches needed to go through the whole dataset
     Number of batches needed is equivalent to number of updates needed. Updating learning rate every iteration
     """
-    # Hyperparameters
+    # Hyperparametershh
     eta_min = 0.00001
     eta_max = 0.1
-    stepsize = 2 * data_train.shape[1]/batch_size
+    stepsize = 800
     total_updates = 2 * stepsize * cycles # Total number of updates
     epochs = int(total_updates / (data_train.shape[1]/batch_size)) # Total number of epochs
     updates_per_epoch = int(data_train.shape[1]/batch_size) # Number of updates per epoch
@@ -371,7 +373,7 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
         print("Plotting will be done, this may take a while...")
     else:
         print("###Starting training...")
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         for batch in range(int(data_train.shape[1]/batch_size)):
             start = batch * batch_size
             end = (batch + 1) * batch_size
@@ -404,7 +406,7 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
                     test_accuracies_list.append(round(compute_accuracy(data_test, labels_test, weights, bias), 3))
                     test_cost_list.append(compute_cost(data_test, labels_test, weights, bias, reguliser))
                     test_loss_list.append(get_loss(data_test, labels_test, weights, bias))                
-                print("Accuracy: ", acc_train," Update steps: ", update_steps)
+                #print("Accuracy: ", acc_train," Update steps: ", update_steps)
     train_best_accuracy = max(train_accuracies_list)
 
     if do_plot:
@@ -448,10 +450,12 @@ def large_lamda_search(how_many,data_train, data_val, data_test, labels_train, l
         lamda_list.append(lamda)
 
     lamda_list.sort()
-    for reguliser in lamda_list:
+    for reguliser in tqdm(lamda_list):
         print("Lamda: ", reguliser)
-        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0, reguliser=reguliser, batch_size=1000, cycles=1, do_plot=False, filename="" )
+        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0, reguliser=reguliser, batch_size=1000, cycles=2, do_plot=False, filename="" )
         accuracy_list.append(train_best_accuracy)
+        weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
+
     
     # Get the best lamdas and their respective accuracies and store them in a list
     for i in range(3):
@@ -471,11 +475,14 @@ def large_lamda_search(how_many,data_train, data_val, data_test, labels_train, l
 
 def narrow_lamda_search(lamda_list, data_val, data_test, labels_train, labels_val, labels_test, weights, bias):
     accuracy_list = list()
-    for reguliser in lamda_list:
-        print("Lamda: ", reguliser)
-        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0, reguliser=reguliser, batch_size=1000, cycles=3, do_plot=True, filename="lamda_"+str(reguliser))
+    for reguliser2 in lamda_list:
+        print("Lamda: ", reguliser2)
+        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.0001, reguliser=reguliser2, batch_size=1000, cycles=3, do_plot=True, filename="lamda_"+str(reguliser2))
         accuracy_list.append(train_best_accuracy)
-    
+        # Reinitialize the weights and bias
+        weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
+
+
     # Find the best lamda and its accuracy
     best_lamda = lamda_list[accuracy_list.index(max(accuracy_list))]
     best_accuracy = max(accuracy_list)
@@ -506,6 +513,17 @@ if __name__ == '__main__':
         print("Wrong input, please try again")
         sys.exit()
     
+    if lamda_search == "n":
+        print("Do you want to use the entire dataset? (y/n)")
+        use_entire_dataset = input()
+        if use_entire_dataset == "y":
+            data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started_all()
+        elif use_entire_dataset == "n":
+            data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = getting_started()
+        else:
+            print("Wrong input, please try again")
+            sys.exit()       
+    
     # Normalising the data
     data_train, data_val, data_test = normalise_all(data_train, data_val, data_test) 
 
@@ -517,13 +535,16 @@ if __name__ == '__main__':
 
     if lamda_search == "y":
         # Searching for the best lamda
-        three_lamdas, three_accuracy = large_lamda_search(10,data_train, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
+        three_lamdas, three_accuracy = large_lamda_search(15,data_train, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
         print("Best lamdas: ", three_lamdas)
         print("Best accuracies: ", three_accuracy)
         best_reg = narrow_lamda_search(three_lamdas, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
+        best_acc = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test,
+                                  learning_rate=0.00001, reguliser=best_reg, batch_size=100, cycles=3, do_plot=True, filename="Maxed_Reg_results.png")
+
     else:
         best_lamda = 0.01
     # Training the best reguliser
     best_acc = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test,
-                              learning_rate=0.00001, reguliser=0.007700753202063438, batch_size=100, cycles=3, do_plot=True, filename="Maxed_Reg_results.png")
+                              learning_rate=0.00001, reguliser=best_lamda, batch_size=100, cycles=3, do_plot=True, filename="cyclical_2.png")
 
