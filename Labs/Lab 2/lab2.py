@@ -53,7 +53,7 @@ def getting_started_all():
     labels_test = batch['labels']
 
     # Create the validation data
-    random_indices = np.random.choice(data_train.shape[0], 5000, replace=False)
+    random_indices = np.random.choice(data_train.shape[0], 1000, replace=False)
     data_val = data_train[random_indices]
     labels_val = labels_train[random_indices]  
     data_train = np.delete(data_train, random_indices, axis=0) # Delete the validation data from the training data
@@ -342,9 +342,9 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     Number of batches needed is equivalent to number of updates needed. Updating learning rate every iteration
     """
     # Hyperparametershh
-    eta_min = 0.00001
+    eta_min = 0.000001
     eta_max = 0.1
-    stepsize = 800
+    stepsize =  (data_train.shape[1]/batch_size) * 4 # Number of iterations in a halv cycle
     total_updates = 2 * stepsize * cycles # Total number of updates
     epochs = int(total_updates / (data_train.shape[1]/batch_size)) # Total number of epochs
     updates_per_epoch = int(data_train.shape[1]/batch_size) # Number of updates per epoch
@@ -361,7 +361,6 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     validation_loss_list = list()
     # For plotting
     test_accuracies_list = list()
-    test_best_accuracy = 0
     test_cost_list = list()
     test_loss_list = list()
     steps_list = list()
@@ -374,7 +373,7 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
     else:
         print("###Starting training...")
     for epoch in tqdm(range(epochs)):
-        for batch in range(int(data_train.shape[1]/batch_size)):
+        for batch in tqdm(range(int(data_train.shape[1]/batch_size))):
             start = batch * batch_size
             end = (batch + 1) * batch_size
             # Relued Layers and scores
@@ -390,28 +389,27 @@ def batch_training(data_train, data_val, data_test, weights, bias, labels_train,
             current_iteration = epoch * updates_per_epoch + batch
             learning_rate = cyclical_update(current_iteration, stepsize, eta_min, eta_max)
             update_steps += 1
-            if update_steps % 20 == 0:
-                # round the accuracy to 2 decimal places
-                acc_train= round(compute_accuracy(data_train, labels_train, weights, bias), 3)
-                train_accuracies_list.append(acc_train)
-                if do_plot:
-                    steps_list.append(update_steps)
-                    train_cost_list.append(compute_cost(data_train, labels_train, weights, bias, reguliser))
-                    train_loss_list.append(get_loss(data_train, labels_train, weights, bias))
+        # round the accuracy to 2 decimal places
+        acc_train= round(compute_accuracy(data_train, labels_train, weights, bias), 3)
+        train_accuracies_list.append(acc_train)
+        if do_plot:
+            steps_list.append(epoch)
+            train_cost_list.append(compute_cost(data_train, labels_train, weights, bias, reguliser))
+            train_loss_list.append(get_loss(data_train, labels_train, weights, bias))
 
-                    validation_accuracies_list.append(round(compute_accuracy(data_val, label_val, weights, bias), 3)) 
-                    validation_cost_list.append(compute_cost(data_val, label_val, weights, bias, reguliser))
-                    validation_loss_list.append(get_loss(data_val, label_val, weights, bias))
+            validation_accuracies_list.append(round(compute_accuracy(data_val, label_val, weights, bias), 3)) 
+            validation_cost_list.append(compute_cost(data_val, label_val, weights, bias, reguliser))
+            validation_loss_list.append(get_loss(data_val, label_val, weights, bias))
 
-                    test_accuracies_list.append(round(compute_accuracy(data_test, labels_test, weights, bias), 3))
-                    test_cost_list.append(compute_cost(data_test, labels_test, weights, bias, reguliser))
-                    test_loss_list.append(get_loss(data_test, labels_test, weights, bias))                
-                #print("Accuracy: ", acc_train," Update steps: ", update_steps)
+            test_accuracies_list.append(round(compute_accuracy(data_test, labels_test, weights, bias), 3))
+            test_cost_list.append(compute_cost(data_test, labels_test, weights, bias, reguliser))
+            test_loss_list.append(get_loss(data_test, labels_test, weights, bias))                
+        #print("Accuracy: ", acc_train," Update steps: ", update_steps)
     train_best_accuracy = max(train_accuracies_list)
 
     if do_plot:
         do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list,name_of_file=filename)
-    return train_best_accuracy,
+    return train_best_accuracy
     
 
 def do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validation_accuracies_list, validation_loss_list, validation_cost_list, test_accuracies_list, test_loss_list, test_cost_list, steps_list,name_of_file=""):
@@ -442,52 +440,77 @@ def do_plotting(train_accuracies_list, train_loss_list, train_cost_list, validat
 def large_lamda_search(how_many,data_train, data_val, data_test, labels_train, labels_val, labels_test, weights, bias):
     lamda_list= list()
     accuracy_list = list()
+    log_scales = list()
+
     three_lamdas = list()
     three_accuracy = list()
-    for lamdas in range(how_many):
+    three_logscales = list()
+    for i in range(how_many):
         random_number = np.random.uniform(-5, -1)
         lamda = 10**random_number
         lamda_list.append(lamda)
+        log_scales.append(random_number)
 
-    lamda_list.sort()
+    # Train the network with different lamdas 
     for reguliser in tqdm(lamda_list):
         print("Lamda: ", reguliser)
         train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0, reguliser=reguliser, batch_size=1000, cycles=2, do_plot=False, filename="" )
         accuracy_list.append(train_best_accuracy)
         weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
 
-    
-    # Get the best lamdas and their respective accuracies and store them in a list
+    # Find the best lamdas with their corresponding accuracy and logscales
     for i in range(3):
-        best_lamda = lamda_list[accuracy_list.index(max(accuracy_list))]
-        best_accuracy = max(accuracy_list)
-        three_lamdas.append(best_lamda)
-        three_accuracy.append(best_accuracy)
-        accuracy_list.remove(best_accuracy)
-        lamda_list.remove(best_lamda) 
-
+        max_accuracy = max(accuracy_list)
+        index = accuracy_list.index(max_accuracy) # Get the index of the best lamda
+        three_lamdas.append(lamda_list[index])
+        three_accuracy.append(accuracy_list[index])
+        three_logscales.append(log_scales[index])
+        accuracy_list.pop(index)
+        lamda_list.pop(index)
+        log_scales.pop(index)
+    
     # Store the best lamdas and their 
     with open("data/lamda_search.txt", "w") as f:
-        f.write("Lamda: " + str(three_lamdas) + " Accuracy: " + str(three_accuracy))
+        f.write("Lamda: " + str(three_lamdas) + " Accuracy: " + str(three_accuracy) + " Logscale: " + str(three_logscales))
 
-    return three_lamdas, three_accuracy
+    return three_lamdas, three_accuracy, three_logscales
 
 
-def narrow_lamda_search(lamda_list, data_val, data_test, labels_train, labels_val, labels_test, weights, bias):
-    accuracy_list = list()
-    for reguliser2 in lamda_list:
+def narrow_lamda_search(lamda_list, accuracy_list, data_val, data_test, labels_train, labels_val, labels_test, weights, bias):
+    weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
+
+    # Grab the lamda with the highest accuracy and the corresponding accuracy
+    best_lamda = lamda_list[accuracy_list.index(max(accuracy_list))]
+    prev_accuracy = max(accuracy_list)
+
+    # Find the two lamdas with the largest difference between them 
+    lamda_list.sort()
+
+    # Grab the two lamdas with the largest difference between them
+    lamda_large = lamda_list[0]
+    lamda_small = lamda_list[1]
+
+    # Uniformly at random pick 3 lamdas between the two lamdas
+    lamda_narrow_list = list()
+    for i in range(3):
+        lamda_narrow_list.append(np.random.uniform(lamda_small, lamda_large))
+
+    accuracy_narrow_list = list()
+    for reguliser2 in lamda_narrow_list:
         print("Lamda: ", reguliser2)
-        train_best_accuracy = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.0001, reguliser=reguliser2, batch_size=1000, cycles=3, do_plot=True, filename="lamda_"+str(reguliser2))
-        accuracy_list.append(train_best_accuracy)
+        train_best_accuracy  = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate=0.0001, reguliser=reguliser2, batch_size=1000, cycles=3, do_plot=True, filename="narrow_lamda_"+str(reguliser2))
+        accuracy_narrow_list.append(train_best_accuracy)
         # Reinitialize the weights and bias
         weights, bias = init_weights_bias(data_train, labels_train, hidden_nodes=50)
+    
+    # Find the lambda with the highest accuracy and the corresponding accuracy
+    best_lamda_narrow = lamda_narrow_list[accuracy_narrow_list.index(max(accuracy_narrow_list))]
+    accuracy_narrow = max(accuracy_narrow_list)
 
-
-    # Find the best lamda and its accuracy
-    best_lamda = lamda_list[accuracy_list.index(max(accuracy_list))]
-    best_accuracy = max(accuracy_list)
-    print("Best lamda: ", best_lamda, " Best accuracy: ", best_accuracy)
-
+    if accuracy_narrow > prev_accuracy:
+        best_lamda = best_lamda_narrow
+        prev_accuracy = accuracy_narrow
+    
     return best_lamda
 
 
@@ -535,16 +558,16 @@ if __name__ == '__main__':
 
     if lamda_search == "y":
         # Searching for the best lamda
-        three_lamdas, three_accuracy = large_lamda_search(15,data_train, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
+        three_lamdas, three_accuracy, three_logscales = large_lamda_search(3,data_train, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
         print("Best lamdas: ", three_lamdas)
+        print("Best logscales: ", three_logscales)
         print("Best accuracies: ", three_accuracy)
-        best_reg = narrow_lamda_search(three_lamdas, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
+        best_reg = narrow_lamda_search(three_lamdas, three_accuracy, data_val, data_test, labels_train, labels_val, labels_test, weights, bias)
         best_acc = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test,
-                                  learning_rate=0.00001, reguliser=best_reg, batch_size=100, cycles=3, do_plot=True, filename="Maxed_Reg_results.png")
+                                  learning_rate=0.00001, reguliser=best_reg, batch_size=100, cycles=3, do_plot=True, filename="Maxed_Reg_results1.png")
 
     else:
-        best_lamda = 0.01
+        best_lamda = 0.00017243318991509566
     # Training the best reguliser
     best_acc = batch_training(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test,
-                              learning_rate=0.00001, reguliser=best_lamda, batch_size=100, cycles=3, do_plot=True, filename="cyclical_2.png")
-
+                              learning_rate=0.00001, reguliser=best_lamda, batch_size=100, cycles=3, do_plot=True, filename="Maxed_Reg_results1.png")
