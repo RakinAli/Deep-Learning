@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import sys 
+from tqdm import tqdm
 
 # Global variables
 PATH = "Datasets/cifar-10-batches-py/"
@@ -12,7 +13,6 @@ def LoadBatch(filename):
   with open(filename, 'rb') as fo:
       dict = pickle.load(fo, encoding='latin1')
   return dict
-
 
 def read_data(size_of_validation=5000):
   """@docstring:
@@ -61,7 +61,6 @@ def read_data(size_of_validation=5000):
 
   return data_train, labels_train, data_val, labels_val, data_test, labels_test, labels
 
-
 def normalise(data, mean, std):
   """@docstring:
   Preprocess the data by subtracting the mean image and dividing by the standard deviation of each feature.
@@ -83,7 +82,6 @@ def normalise(data, mean, std):
   data = np.transpose(data)  # Transpose the data to get the shape (D, N)
   return data, mean, std
 
-
 def one_hot_encoding(labels, dimensions):
   """@docstring:
   One-hot encode the labels.
@@ -97,7 +95,6 @@ def one_hot_encoding(labels, dimensions):
   for i in range(len(labels)):
     one_hot[labels[i], i] = 1
   return one_hot
-
 
 def encode_all(labels_train, labels_val, labels_test):
   """@docstring:
@@ -113,7 +110,6 @@ def encode_all(labels_train, labels_val, labels_test):
   labels_test = one_hot_encoding(labels_test, 10)  # k x N matrix
   return labels_train, labels_val, labels_test
 
-
 def normalise_all(data_train, data_val, data_test):
   """@docstring:
   Normalise the data
@@ -127,7 +123,6 @@ def normalise_all(data_train, data_val, data_test):
   data_val_norm, _, _ = normalise(data_val, None, None)
   data_test_norm, _, _ = normalise(data_test, None, None)
   return data_train_norm, data_val_norm, data_test_norm,
-
 
 def init_network(data, nodes_in_layer, layers=3, he=False, sigma=None):
   if len(nodes_in_layer) != layers:
@@ -177,6 +172,11 @@ def relu(s):
   return np.maximum(0, s)
 
 def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var = None, do_batchNorm = False):
+  """@docstring:
+  Forward pass of the network
+  Returns:
+  - layers: A list of length L+1 containing the layers of the network. The last element of the list is the output layer.
+  - scores_list: A list of length L containing the scores of each layer. The last element of the list is the scores of the output layer."""
   if not do_batchNorm:
     layers = list()
     scores_list = list()
@@ -211,15 +211,95 @@ def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, m
     grad_bias.reverse()
     return grad_weights, grad_bias
 
-
   else:
     print("Not implemented yet")
 
-  
+def get_loss(data,labels,weights,bias,reg, probs):
+  loss_log = - np.log(np.sum(labels * probs, axis=0)) # dim = (N, 1)
+  loss = np.sum(loss_log)/data.shape[1] 
 
+  return loss
+
+def compute_accuracy(data, labels, weights, bias, gamma=None, beta=None, mean=None, var=None, do_batchNorm=False):
+  probs = forward_pass(data, weights, bias, gamma, beta, mean, var, do_batchNorm)[0][-1] # Softmax of the last layer
+  predictions = np.argmax(probs, axis=0)
+  labels = np.argmax(labels, axis=0)
+  total_correct = np.sum(predictions == labels) / len(labels)
+  return total_correct
+
+def compute_cost(data, labels, weights, bias, reg, probs):
+  # The loss function
+  loss = get_loss(data, labels, weights, bias, reg, probs)
+  # The regularisation term
+  reg_cost = reg * np.sum([np.sum(np.square(w)) for w in weights]) # L2 regularisation
+
+  return loss + reg_cost
+
+def configure_training(epochs, batch_size, learning_rate, reg, lr_min, lr_max, cycles,stepsize, alpha, plotting=False, lamda_search=False, do_batchNorm=False):
+  settings= dict()
+  settings["epochs"] = epochs
+  settings["batch_size"] = batch_size
+  settings["learning_rate"] = learning_rate
+  settings["reg"] = reg
+  settings["lr_min"] = lr_min
+  settings["lr_max"] = lr_max
+  settings["cycles"] = cycles
+  settings["stepSize"] = (lr_max - lr_min) / (2 * cycles)
+  settings["alpha"] = alpha
+  settings["plotting"] = plotting
+  settings["lamda_search"] = lamda_search
+  settings["do_batchNorm"] = do_batchNorm
+  return settings
+
+def train_network(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels,weights, biases, train_config):
+  """Does the training of the network. Configre the train_config dictionary to set the parameters."""
+  # Unpack the settings
+  epochs = train_config["epochs"]
+  batch_size = train_config["batch_size"]
+  learning_rate = train_config["learning_rate"]
+  regulariser = train_config["reg"]
+  lr_min = train_config["lr_min"]
+  lr_max = train_config["lr_max"]
+  cycles = train_config["cycles"]
+  stepSize = train_config["stepSize"]
+  alpha = train_config["alpha"]
+  plotting = train_config["plotting"]
+  lamda_search = train_config["lamda_search"]
+  do_batchNorm = train_config["do_batchNorm"]
+
+  if lamda_search:
+    print("Lambda search is not implemented yet")
+
+  # Starting the training
+  for epoch in tqdm(range(epochs)):
+    for batch_iter in range(int(data_test.shape[1]/batch_size)):
+      start = batch_iter * batch_size
+      end = (batch_iter + 1) * batch_size
+
+      # Train like usual: forward then backward then update etc
+      if not do_batchNorm:
+        data_batch = data_train[:, start:end]
+        labels_batch = labels_train[:, start:end]
+        # Forward pass
+        layers, scores_list = forward_pass(data_batch, weights, biases, do_batchNorm=False)
+        # Backward pass
+        grad_weights, grad_bias = back_pass(data_batch, labels_batch, weights, regulariser, layers[-1], scores_list[-1], None, None, None, None, do_batchNorm=False)
+        # Update the weights and biases
+        weights, biases = update_weight_biases(weights, biases, grad_weights, grad_bias, learning_rate)
+
+      else:
+        print("Not implemented yet") 
+
+
+def update_weight_biases(weights, biases, grad_weights, grad_bias, learning_rate):
+  for i in range(len(weights)):
+    weights[i] = weights[i] - learning_rate * grad_weights[i]
+    biases[i] = biases[i] - learning_rate * grad_bias[i]
+  return weights, biases
 
 
 def main():
+
   #Getting started
   data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = read_data(5000)
 
@@ -229,7 +309,16 @@ def main():
 
   # Initialise the network
   weights, biases, _, _ = init_network(data_train, [50, 50, 10], layers=3, he=False, sigma=0.0) 
+  train_config = configure_training(epochs=40, batch_size=100, learning_rate=0.01, reg=0.0, lr_min=0.000001, lr_max=0.1, cycles=2, stepsize=(5*45000)/100, alpha=0.9, plotting=False, lamda_search=False, do_batchNorm=False)
   print("Completed the initialisation of the network")
+
+  # Training the network
+  print("Testing training...")
+  train_network(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels, weights, biases, train_config)
+
+  """
+  # Get the first accuracy
+  acc1 = compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
 
   # Forward pass
   data, scores_list = forward_pass(data_train, weights, biases, do_batchNorm=False)
@@ -239,6 +328,9 @@ def main():
   grad_weights, grad_bias = back_pass(data, labels_train, weights, 0.0, data[-1], scores_list[-1], None, None, None, None, do_batchNorm=False)
   print("Completed the backward pass")
 
+  # Get accuracy
+  acc2= compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
+  """
 
 
   
