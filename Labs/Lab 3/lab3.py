@@ -141,13 +141,15 @@ def init_network(data, nodes_in_layer, layers=3, he=False, sigma=None):
 
   # First layer --> Dim = D is the data dimension and N is the number of nodes in the first layer
   if sigma is not None:
+    if sigma == 0:
+      print("Sigma cannot be 0")
+      sys.exit()
     # shape (N, D)
     weights.append(np.random.normal(0, sigma, (nodes_in_layer[0], data.shape[0])))
   else:
     # shape: (N, D)
-    weights.append(np.random.normal(0, np.sqrt(number / data.shape[0]), (nodes_in_layer[0], data.shape[0])))
-  
-  biases.append(np.zeros((nodes_in_layer[0], 1)))
+    weights.append(np.random.normal(0, np.sqrt(number / data.shape[0]), (nodes_in_layer[0], data.shape[0]))) 
+  biases.append(np.zeros((nodes_in_layer[0], 1))) # shape: (N, 1)
 
   for i in range(1, layers):
     if sigma is not None:
@@ -182,15 +184,21 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
     scores_list = list()
     layers.append(np.copy(data))
 
-    for i in range(len(weights)-1):
+    for i in range(len(data)-1):
       scores_list.append(get_scores(layers[-1], weights[i], bias[i]))
       layers.append(relu(scores_list[-1]))
     scores_list.append(get_scores(layers[-1], weights[-1], bias[-1])) # Scores of the last layer
     layers.append(softmax(scores_list[-1])) # Softmax of the last layer 
-    print("Shape of the last layer: ", layers[-1].shape)
     return layers, scores_list
 
 def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, mean = None, var = None, do_batchNorm = False):
+  """
+  Edit: This part of the code was heavily inspired by other students who sat with me and 
+  helped me debug. I tried like in previously from assignemnt 2 to use -i iteration and iterate through data
+  however since in my forward pass I do a softmax at the end, it made it slighly more difficult for me. I got lazy 
+  and got help to try this way. I understand the code and everything else but want to point this out in the case that 
+  it raises any concerns.
+  """
   grad_weights = list()
   grad_bias = list()
 
@@ -235,21 +243,41 @@ def compute_cost(data, labels, weights, bias, reg, probs):
 
   return loss + reg_cost
 
-def configure_training(epochs, batch_size, learning_rate, reg, lr_min, lr_max, cycles,stepsize, alpha, plotting=False, lamda_search=False, do_batchNorm=False):
+def configure_training(data, batch_size, learning_rate, reg, lr_min, lr_max, cycles,stepsize, alpha, plotting=False, lamda_search=False, do_batchNorm=False):
   settings= dict()
-  settings["epochs"] = epochs
+  settings["epochs"] = int((cycles* 2 * stepsize)/(data.shape[1]/batch_size)) # Number of iterations
   settings["batch_size"] = batch_size
   settings["learning_rate"] = learning_rate
   settings["reg"] = reg
   settings["lr_min"] = lr_min
   settings["lr_max"] = lr_max
   settings["cycles"] = cycles
-  settings["stepSize"] = (lr_max - lr_min) / (2 * cycles)
+  settings["stepSize"] = stepsize
   settings["alpha"] = alpha
   settings["plotting"] = plotting
   settings["lamda_search"] = lamda_search
   settings["do_batchNorm"] = do_batchNorm
   return settings
+
+def update_weight_biases(weights, biases, grad_weights, grad_bias, learning_rate):
+  for i in range(len(weights)):
+    weights[i] = weights[i] - learning_rate * grad_weights[i]
+    biases[i] = biases[i] - learning_rate * grad_bias[i]
+  return weights, biases
+
+def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
+    #One completed cycle is 2 * half_cycle iterations
+    current_cycle = int(current_iteration / (2 * half_cycle))  
+
+    # If the current iteration is in the first half of the cycle, the learning rate is increasing
+    if 2 * current_cycle * half_cycle <= current_iteration <= (2 * current_cycle + 1) * half_cycle:
+        return min_learning + ((current_iteration - 2 * current_cycle * half_cycle) / half_cycle) * (max_learning - min_learning)
+    
+    # If the current iteration is in the second half of the cycle, the learning rate is decreasing
+    if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
+        return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
+
+
 
 def train_network(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels,weights, biases, train_config):
   """Does the training of the network. Configre the train_config dictionary to set the parameters."""
@@ -282,21 +310,20 @@ def train_network(data_train, labels_train, data_val, labels_val, data_test, lab
         labels_batch = labels_train[:, start:end]
         # Forward pass
         layers, scores_list = forward_pass(data_batch, weights, biases, do_batchNorm=False)
-        # Backward pass
-        grad_weights, grad_bias = back_pass(data_batch, labels_batch, weights, regulariser, layers[-1], scores_list[-1], None, None, None, None, do_batchNorm=False)
-        # Update the weights and biases
+        # Backward pass and update weights and biases
+        grad_weights, grad_bias = back_pass(layers, labels_batch, weights, regulariser, layers[-1], scores_list[-1], None, None, None, None, do_batchNorm=False)
         weights, biases = update_weight_biases(weights, biases, grad_weights, grad_bias, learning_rate)
-
       else:
         print("Not implemented yet") 
+      # Update the learning rate for the next iteration cyclical learning rate
+      learning_rate = cyclical_update(epoch * int(data_test.shape[1]/batch_size) + batch_iter, stepSize, lr_min, lr_max)     
 
-
-def update_weight_biases(weights, biases, grad_weights, grad_bias, learning_rate):
-  for i in range(len(weights)):
-    weights[i] = weights[i] - learning_rate * grad_weights[i]
-    biases[i] = biases[i] - learning_rate * grad_bias[i]
-  return weights, biases
-
+    
+    acc = compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
+    loss = get_loss(data_train, labels_train, weights, biases, regulariser, forward_pass(data_train, weights, biases, do_batchNorm=False)[0][-1])
+    print("Epoch: ", epoch, " Accuracy: ", acc, " Loss: ", loss)
+ 
+    
 
 def main():
 
@@ -308,13 +335,15 @@ def main():
   labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
   # Initialise the network
-  weights, biases, _, _ = init_network(data_train, [50, 50, 10], layers=3, he=False, sigma=0.0) 
-  train_config = configure_training(epochs=40, batch_size=100, learning_rate=0.01, reg=0.0, lr_min=0.000001, lr_max=0.1, cycles=2, stepsize=(5*45000)/100, alpha=0.9, plotting=False, lamda_search=False, do_batchNorm=False)
+  weights, biases, _, _ = init_network(data_train, [50,30,20,20,10,10,10,10,10], layers=9, he=True, sigma=None) 
+
+   
+  train_config = configure_training(data_train,batch_size=100, learning_rate=0.0001, reg=0.005, lr_min=0.00001, lr_max=0.1, cycles=2, stepsize=(2250), alpha=0, plotting=False, lamda_search=False, do_batchNorm=False)
   print("Completed the initialisation of the network")
 
   # Training the network
   print("Testing training...")
-  train_network(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels, weights, biases, train_config)
+  train_network(data_train, labels_train , data_val, labels_val, data_test, labels_test, labels, weights, biases, train_config)
 
   """
   # Get the first accuracy
@@ -328,8 +357,13 @@ def main():
   grad_weights, grad_bias = back_pass(data, labels_train, weights, 0.0, data[-1], scores_list[-1], None, None, None, None, do_batchNorm=False)
   print("Completed the backward pass")
 
+  # Update weights and bias
+  weights, biases = update_weight_biases(weights,biases, grad_weights, grad_bias,0.01)
+
   # Get accuracy
   acc2= compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
+
+  print("Acc1: ", acc1, " Acc2: ", acc2)
   """
 
 
