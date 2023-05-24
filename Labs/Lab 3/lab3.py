@@ -184,7 +184,7 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
     scores_list = list()
     layers.append(np.copy(data))
 
-    for i in range(len(data)-1):
+    for i in range(len(weights)):
       scores_list.append(get_scores(layers[-1], weights[i], bias[i]))
       layers.append(relu(scores_list[-1]))
     scores_list.append(get_scores(layers[-1], weights[-1], bias[-1])) # Scores of the last layer
@@ -337,15 +337,16 @@ def main():
   # Initialise the network
   weights, biases, _, _ = init_network(data_train, [50,30,20,20,10,10,10,10,10], layers=9, he=True, sigma=None) 
 
-   
+  """
   train_config = configure_training(data_train,batch_size=100, learning_rate=0.0001, reg=0.005, lr_min=0.00001, lr_max=0.1, cycles=2, stepsize=(2250), alpha=0, plotting=False, lamda_search=False, do_batchNorm=False)
   print("Completed the initialisation of the network")
 
   # Training the network
   print("Testing training...")
   train_network(data_train, labels_train , data_val, labels_val, data_test, labels_test, labels, weights, biases, train_config)
-
   """
+
+  
   # Get the first accuracy
   acc1 = compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
 
@@ -364,7 +365,7 @@ def main():
   acc2= compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
 
   print("Acc1: ", acc1, " Acc2: ", acc2)
-  """
+  
 
 
   
