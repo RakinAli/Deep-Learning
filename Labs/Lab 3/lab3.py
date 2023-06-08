@@ -124,46 +124,6 @@ def normalise_all(data_train, data_val, data_test):
   data_test_norm, _, _ = normalise(data_test, None, None)
   return data_train_norm, data_val_norm, data_test_norm,
 
-def init_network(data, nodes_in_layer, layers=3, he=False, sigma=None):
-  if len(nodes_in_layer) != layers:
-    # System exit
-    sys.exit("The number of layers does not match the number of nodes in each layer.")
-
-  weights = list()
-  biases = list()
-  gamma = list()
-  beta = list()
-
-  if he:
-    number = 2
-  else:
-    number = 1
-
-  # First layer --> Dim = D is the data dimension and N is the number of nodes in the first layer
-  if sigma is not None:
-    if sigma == 0:
-      print("Sigma cannot be 0")
-      sys.exit()
-    # shape (N, D)
-    weights.append(np.random.normal(0, sigma, (nodes_in_layer[0], data.shape[0])))
-  else:
-    # shape: (N, D)
-    weights.append(np.random.normal(0, np.sqrt(number / data.shape[0]), (nodes_in_layer[0], data.shape[0]))) 
-  biases.append(np.zeros((nodes_in_layer[0], 1))) # shape: (N, 1)
-
-  for i in range(1, layers):
-    if sigma is not None:
-      weights.append(np.random.normal(0, sigma, (nodes_in_layer[i], weights[-1].shape[0])))
-    else:
-      weights.append(np.random.normal(0, np.sqrt(number / weights[-1].shape[0]), (nodes_in_layer[i], weights[-1].shape[0])))
-    biases.append(np.zeros((nodes_in_layer[i], 1)))
-  
-  for nodes in nodes_in_layer[:-1]:
-    gamma.append(np.ones((nodes, 1)))
-    beta.append(np.zeros((nodes, 1)))
-
-  return weights, biases, gamma, beta
-
 def softmax(s):
   return np.exp(s) / np.sum(np.exp(s), axis=0) 
 
@@ -179,17 +139,23 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
   Returns:
   - layers: A list of length L+1 containing the layers of the network. The last element of the list is the output layer.
   - scores_list: A list of length L containing the scores of each layer. The last element of the list is the scores of the output layer."""
+  
+  # Regular forward pass
   if not do_batchNorm:
-    layers = list()
-    scores_list = list()
+    layers = list() # List of layers
+    scores_list = list() # List of scores for each layer
     layers.append(np.copy(data))
+    for i in range(len(weights)-1):
+      scores_list.append(get_scores(layers[-1], weights[i], bias[i])) # Get the scores and append them to the list
+      layers.append(relu(scores_list[-1])) # Get the relu of the scores and append them to the list
+    scores_list.append(get_scores(layers[-1], weights[-1], bias[-1])) 
+    layers.append(softmax(scores_list[-1])) # Softmax of the last layer and append it to the list
+  else:
+    print("Not implemented yet")
+  return layers, scores_list
+  
 
-    for i in range(len(weights)):
-      scores_list.append(get_scores(layers[-1], weights[i], bias[i]))
-      layers.append(relu(scores_list[-1]))
-    scores_list.append(get_scores(layers[-1], weights[-1], bias[-1])) # Scores of the last layer
-    layers.append(softmax(scores_list[-1])) # Softmax of the last layer 
-    return layers, scores_list
+
 
 def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, mean = None, var = None, do_batchNorm = False):
   """
@@ -199,28 +165,25 @@ def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, m
   and got help to try this way. I understand the code and everything else but want to point this out in the case that 
   it raises any concerns.
   """
-  grad_weights = list()
-  grad_bias = list()
-
+  weights_gradients = list()
+  bias_gradients = list()
   if not do_batchNorm:
     # Last layer
-    g = - (labels - softmax) # (K, N)
+    g = -(labels-softmax)
 
+    # The rest of the layers:
     for i in reversed(range(len(weights))):
-      grad_weights.append(g @ data[i].T / data[i].shape[1] + 2 * reg * weights[i])
-      grad_bias.append(np.sum(g, axis=1, keepdims=True) / data[0].shape[1])     
+      weights_gradients.append(((g @ data[i].T) /data[0].shape[1]) + 2 * reg * weights[i])
+      bias_gradients.append(np.sum(g, axis=1)[:, np.newaxis] / data[0].shape[1])
       g = weights[i].T @ g
       ind = np.copy(data[i])
-      ind[ind > 0] = 1 # Relu derivative
-      g = g * ind
-    
-    # Reverse the lists
-    grad_weights.reverse() 
-    grad_bias.reverse()
-    return grad_weights, grad_bias
+      ind[ind>0] = 1 
+      g = g * ind 
+    weights_gradients.reverse(), bias_gradients.reverse()
 
-  else:
-    print("Not implemented yet")
+    
+
+    return weights_gradients, bias_gradients
 
 def get_loss(data,labels,weights,bias,reg, probs):
   loss_log = - np.log(np.sum(labels * probs, axis=0)) # dim = (N, 1)
@@ -229,7 +192,7 @@ def get_loss(data,labels,weights,bias,reg, probs):
   return loss
 
 def compute_accuracy(data, labels, weights, bias, gamma=None, beta=None, mean=None, var=None, do_batchNorm=False):
-  probs = forward_pass(data, weights, bias, gamma, beta, mean, var, do_batchNorm)[0][-1] # Softmax of the last layer
+  probs = forward_pass(data, weights, bias, gamma, beta, mean, var, do_batchNorm=False)[0][-1] # Softmax of the last layer
   predictions = np.argmax(probs, axis=0)
   labels = np.argmax(labels, axis=0)
   total_correct = np.sum(predictions == labels) / len(labels)
@@ -243,27 +206,32 @@ def compute_cost(data, labels, weights, bias, reg, probs):
 
   return loss + reg_cost
 
-def configure_training(data, batch_size, learning_rate, reg, lr_min, lr_max, cycles,stepsize, alpha, plotting=False, lamda_search=False, do_batchNorm=False):
-  settings= dict()
-  settings["epochs"] = int((cycles* 2 * stepsize)/(data.shape[1]/batch_size)) # Number of iterations
-  settings["batch_size"] = batch_size
-  settings["learning_rate"] = learning_rate
-  settings["reg"] = reg
-  settings["lr_min"] = lr_min
-  settings["lr_max"] = lr_max
-  settings["cycles"] = cycles
-  settings["stepSize"] = stepsize
-  settings["alpha"] = alpha
-  settings["plotting"] = plotting
-  settings["lamda_search"] = lamda_search
-  settings["do_batchNorm"] = do_batchNorm
-  return settings
+def init_network(data, hidden_layers, he = False, Sigma = None):
+  weights = list()
+  bias = list()
 
-def update_weight_biases(weights, biases, grad_weights, grad_bias, learning_rate):
-  for i in range(len(weights)):
-    weights[i] = weights[i] - learning_rate * grad_weights[i]
-    biases[i] = biases[i] - learning_rate * grad_bias[i]
-  return weights, biases
+  if he:
+    number = 2
+  else: 
+    number = 1
+
+  # This is the first layer
+  if Sigma is not None:
+    print("Not implemented yet")
+  else:
+    weights.append(np.random.normal(0, np.sqrt(number / data.shape[0]),(hidden_layers[0], data.shape[0])))  # Dim: m x d
+
+  bias.append(np.zeros((hidden_layers[0], 1))) # Dim: m x 1
+
+  # This is the hidden layers
+  for i in range(1, len(hidden_layers)):
+    if Sigma is not None:
+      print("Not implemented yet")
+    else:
+      weights.append(np.random.normal(0, np.sqrt(number / hidden_layers[i-1]),(hidden_layers[i], hidden_layers[i-1])))
+    bias.append(np.zeros((hidden_layers[i], 1)))
+
+  return weights, bias 
 
 def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     #One completed cycle is 2 * half_cycle iterations
@@ -278,55 +246,105 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
 
+def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate):
+  for i in range(len(weights)):
+    weights[i] = weights[i] - learning_rate * grad_weights[i]
+    bias[i] = bias[i] - learning_rate * grad_bias[i]
+  return weights, bias
 
-def train_network(data_train, labels_train, data_val, labels_val, data_test, labels_test, labels,weights, biases, train_config):
-  """Does the training of the network. Configre the train_config dictionary to set the parameters."""
-  # Unpack the settings
-  epochs = train_config["epochs"]
-  batch_size = train_config["batch_size"]
-  learning_rate = train_config["learning_rate"]
-  regulariser = train_config["reg"]
-  lr_min = train_config["lr_min"]
-  lr_max = train_config["lr_max"]
-  cycles = train_config["cycles"]
-  stepSize = train_config["stepSize"]
-  alpha = train_config["alpha"]
-  plotting = train_config["plotting"]
-  lamda_search = train_config["lamda_search"]
-  do_batchNorm = train_config["do_batchNorm"]
+def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles, do_plot = False, do_batchNorm = False, name_of_file=""):
+  eta_min = 1e-5
+  eta_max = 1e-1
+  step_size = (data_train.shape[1] / batch_size)*2
+  total_updates = 2 * step_size * cycles
+  epochs = int(np.ceil(total_updates / (data_train.shape[1] / batch_size)))
+  updates_per_epoch = int((data_train.shape[1] / batch_size))  # Number of updates per epoch
+  total_iterations = epochs * updates_per_epoch
 
-  if lamda_search:
-    print("Lambda search is not implemented yet")
+  epochs = int(total_iterations / updates_per_epoch)
 
-  # Starting the training
+
+  # For plotting
+  train_loss = list()
+  vaidation_loss = list()
+  test_loss = list()
+  # For plotting
+  train_accuracy = list()
+  validation_accuracy = list()
+  test_accuracy = list()
+  # For plotting
+  train_cost = list()
+  validation_cost = list()
+  test_cost = list()
+  step_list = list()
+  print("Epochs: ", epochs)
+  print("Updates per epoch: ", updates_per_epoch)
   for epoch in tqdm(range(epochs)):
-    for batch_iter in range(int(data_test.shape[1]/batch_size)):
-      start = batch_iter * batch_size
-      end = (batch_iter + 1) * batch_size
-
-      # Train like usual: forward then backward then update etc
-      if not do_batchNorm:
-        data_batch = data_train[:, start:end]
-        labels_batch = labels_train[:, start:end]
-        # Forward pass
-        layers, scores_list = forward_pass(data_batch, weights, biases, do_batchNorm=False)
-        # Backward pass and update weights and biases
-        grad_weights, grad_bias = back_pass(layers, labels_batch, weights, regulariser, layers[-1], scores_list[-1], None, None, None, None, do_batchNorm=False)
-        weights, biases = update_weight_biases(weights, biases, grad_weights, grad_bias, learning_rate)
-      else:
-        print("Not implemented yet") 
-      # Update the learning rate for the next iteration cyclical learning rate
-      learning_rate = cyclical_update(epoch * int(data_test.shape[1]/batch_size) + batch_iter, stepSize, lr_min, lr_max)     
-
-    
-    acc = compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
-    loss = get_loss(data_train, labels_train, weights, biases, regulariser, forward_pass(data_train, weights, biases, do_batchNorm=False)[0][-1])
-    print("Epoch: ", epoch, " Accuracy: ", acc, " Loss: ", loss)
+    for batch in range(updates_per_epoch):
+      start = batch * batch_size
+      end = (batch+1) * batch_size
+      data_batch = data_train[:, start:end]
+      labels_batch = labels_train[:, start:end]
  
+      # Relued layers and scores
+      layers, scores_list = forward_pass(data_batch, weights, bias)
+
+      # Backpropagation
+      grad_weights, grad_bias = back_pass(layers, labels_batch, weights, 0, layers[-1], scores_list[-1], None, None, None, None, False)
     
+      # Update the weights and bias
+      weights, bias = update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate)
+  
+      # Update the learning rate
+      current_iteration = epoch * updates_per_epoch + batch
+      learning_rate = cyclical_update(current_iteration, step_size, eta_min, eta_max)
+       
+    if do_plot:
+      train_loss.append(get_loss(data_train, labels_train, weights, bias, 0, forward_pass(data_train, weights, bias)[0][-1]))
+      vaidation_loss.append(get_loss(data_val, labels_val, weights, bias, 0, forward_pass(data_val, weights, bias)[0][-1]))
+      test_loss.append(get_loss(data_test, labels_test, weights, bias, 0, forward_pass(data_test, weights, bias)[0][-1]))
+
+      train_accuracy.append(compute_accuracy(data_train, labels_train, weights, bias))
+      validation_accuracy.append(compute_accuracy(data_val, labels_val, weights, bias))
+      test_accuracy.append(compute_accuracy(data_test, labels_test, weights, bias))
+
+      train_cost.append(compute_cost(data_train, labels_train, weights, bias, 0, forward_pass(data_train, weights, bias)[0][-1]))
+      validation_cost.append(compute_cost(data_val, labels_val, weights, bias, 0, forward_pass(data_val, weights, bias)[0][-1]))
+      test_cost.append(compute_cost(data_test, labels_test, weights, bias, 0, forward_pass(data_test, weights, bias)[0][-1]))
+
+      step_list.append(epoch)
+
+  if do_plot:
+    do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validation_accuracy, test_accuracy, train_cost, validation_cost, test_cost, step_list, name_of_file=name_of_file)
+
+  return weights, bias
+
+def do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validation_accuracy, test_accuracy, train_cost, validation_cost, test_cost, step_list,name_of_file=""):
+  # Plotting
+  plt.figure(figsize=(20, 10))
+  plt.subplot(2, 2, 1)
+  plt.plot(step_list, train_accuracy, label="Training accuracy")
+  plt.plot(step_list, validation_accuracy, label="Validation accuracy")
+  plt.plot(step_list, test_accuracy, label="Test accuracy")
+  plt.title("Accuracy")
+  plt.legend()
+  plt.subplot(2, 2, 2)
+  plt.plot(step_list, train_loss, label="Training loss")
+  plt.plot(step_list, vaidation_loss, label="Validation loss")
+  plt.plot(step_list, test_loss, label="Test loss")
+  plt.title("Loss")
+  plt.legend()
+  plt.subplot(2, 2, 3)
+  plt.plot(step_list, train_cost, label="Training cost")
+  plt.plot(step_list, validation_cost, label="Validation cost")
+  plt.plot(step_list, test_cost, label="Test cost")
+  plt.title("Cost")
+  plt.legend()
+  plt.savefig("Results_pics/" + name_of_file + ".png")
+  plt.show()  
+
 
 def main():
-
   #Getting started
   data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = read_data(5000)
 
@@ -334,40 +352,73 @@ def main():
   data_train, data_val, data_test = normalise_all(data_train, data_val, data_test)
   labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
-  # Initialise the network
-  weights, biases, _, _ = init_network(data_train, [50,30,20,20,10,10,10,10,10], layers=9, he=True, sigma=None) 
+  # Initialising the network
+  weights, bias = init_network(data_train, [50,50,10], he = False)
 
-  """
-  train_config = configure_training(data_train,batch_size=100, learning_rate=0.0001, reg=0.005, lr_min=0.00001, lr_max=0.1, cycles=2, stepsize=(2250), alpha=0, plotting=False, lamda_search=False, do_batchNorm=False)
-  print("Completed the initialisation of the network")
+  # Get the softmax of the last layer
+  probs = forward_pass(data_train, weights, bias)[0][-1]
 
-  # Training the network
-  print("Testing training...")
-  train_network(data_train, labels_train , data_val, labels_val, data_test, labels_test, labels, weights, biases, train_config)
-  """
+  # sgd_minibatch
+  weights, bias = sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, 0.01, 0.001, 512, 2, do_plot = True, do_batchNorm = False, name_of_file="SGD_minibatch")
 
-  
-  # Get the first accuracy
-  acc1 = compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
+
+"""
+  # Get accuracy
+  print("Shape of the weights:" , weights[0].shape)
+  print("Shape of the bias:" , bias[0].shape)
+  print("Shape of the data:" , data_train.shape)
+  accuracy = compute_accuracy(data_train, labels_train, weights, bias)
+  print("Accuracy 1: ", accuracy)
+  # get the loss
+  probs = forward_pass(data_train, weights, bias)[0][-1]
+  loss = get_loss(data_train, labels_train, weights, bias, 0, probs)
+  print("Loss 1: ", loss)
 
   # Forward pass
-  data, scores_list = forward_pass(data_train, weights, biases, do_batchNorm=False)
-  print("Completed the forward pass")
+  layers, scores_list = forward_pass(data_train, weights, bias)
 
   # Backward pass
-  grad_weights, grad_bias = back_pass(data, labels_train, weights, 0.0, data[-1], scores_list[-1], None, None, None, None, do_batchNorm=False)
-  print("Completed the backward pass")
+  grad_weights, grad_bias = back_pass(layers, labels_train, weights, 0, layers[-1], scores_list[-1], None, None, None, None, False)
+  print("done")
+  """
 
-  # Update weights and bias
-  weights, biases = update_weight_biases(weights,biases, grad_weights, grad_bias,0.01)
+"""
+
+  # Update the weights and bias
+  for i in range(len(weights)):
+    weights[i] = weights[i] - 0.1 * grad_weights[i]
+    bias[i] = bias[i] - 0.1 * grad_bias[i]
+  
+  print("shape of the weights:", weights[0].shape)
+  print("shape of the bias:", bias[0].shape)
+  print("shape of the data:", data_train.shape)
+  
+  # Get accuracy
+  accuracy = compute_accuracy(data_train, labels_train, weights, bias)
+  print("Accuracy 2: ", accuracy)
+  # get the loss
+  probs = forward_pass(data_train, weights, bias)[0][-1]
+  loss = get_loss(data_train, labels_train, weights, bias, 0, probs)
+  print("Loss 2: ", loss)
+
+  # Do forward and backward pass again
+  layers, scores_list = forward_pass(data_train, weights, bias)
+  grad_weights, grad_bias = back_pass(layers, labels_train, weights, 0, layers[-1], scores_list[-1], None, None, None, None, False)
+
+  # Update the weights and bias
+  for i in range(len(weights)):
+    weights[i] = weights[i] - 0.1 * grad_weights[i]
+    bias[i] = bias[i] - 0.1 * grad_bias[i]
 
   # Get accuracy
-  acc2= compute_accuracy(data_train, labels_train, weights, biases, do_batchNorm=False)
+  accuracy = compute_accuracy(data_train, labels_train, weights, bias)
+  print("Accuracy 3: ", accuracy)
+  # get the loss
+  probs = forward_pass(data_train, weights, bias)[0][-1]
+  loss = get_loss(data_train, labels_train, weights, bias, 0, probs)
+  print("Loss 3: ", loss)
 
-  print("Acc1: ", acc1, " Acc2: ", acc2)
-  
-
-
+  """
   
 if __name__ == "__main__":
   main()
