@@ -135,8 +135,8 @@ def relu(s):
 
 def batch_normalize(score, mean, variance):
   # Taken straight from the lecture notes <-- I wouldn't have written it like this
-  return np.diag(pow(variance + np.finfo(float).eps, -1 / 2)) @ (score - mean[:, np.newaxis])
-
+  norm = np.diag(pow(variance + np.finfo(float).eps, -1 / 2)) @ (score - mean[:, np.newaxis])
+  return norm
 
 def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var = None, do_batchNorm = False):
   """@docstring:
@@ -168,8 +168,8 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
       scores_list.append(get_scores(layers[-1], weights[i], bias[i]))
       # Get the mean and variance of the scores and append them to the list
       if mean is None and var is None:
-        mean_list.append(np.mean(scores_list[-1], axis=1))
-        variance_list.append(np.var(scores_list[-1], axis=1))
+        mean_list.append(np.mean(scores_list[-1], axis=1, dtype=np.float64))
+        variance_list.append(np.var(scores_list[-1], axis=1, dtype=np.float64))
       else:
         mean_list.append(mean[i])
         variance_list.append(var[i])
@@ -181,10 +181,8 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
     scores_list.append(get_scores(layers[-1], weights[-1], bias[-1]))
     layers.append(softmax(scores_list[-1])) # Softmax of the last layer and append it to the list   
 
-  return layers, scores_list
+  return layers, scores_list, mean_list, variance_list, 
   
-
-
 
 def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, mean = None, var = None, do_batchNorm = False):
   """
@@ -248,7 +246,7 @@ def init_network(data, hidden_layers, he = False, Sigma = None):
 
   # This is the first layer
   if Sigma is not None:
-    print("Not implemented yet")
+    weights.append(np.random.normal(0, Sigma,(hidden_layers[0], data.shape[0])))  # Dim: m x d
   else:
     weights.append(np.random.normal(0, np.sqrt(number / data.shape[0]),(hidden_layers[0], data.shape[0])))  # Dim: m x d
 
@@ -257,12 +255,19 @@ def init_network(data, hidden_layers, he = False, Sigma = None):
   # This is the hidden layers
   for i in range(1, len(hidden_layers)):
     if Sigma is not None:
-      print("Not implemented yet")
+      weights.append(np.random.normal(0, Sigma,(hidden_layers[i], weights[-1].shape[0])))  # Dim: l x m
     else:
       weights.append(np.random.normal(0, np.sqrt(number / hidden_layers[i-1]),(hidden_layers[i], hidden_layers[i-1])))
     bias.append(np.zeros((hidden_layers[i], 1)))
 
-  return weights, bias 
+    # Generating the gamma and beta for batch normalisation
+    gamma = list()
+    beta = list()
+    for i in range(len(hidden_layers)-1):
+      gamma.append(np.ones((hidden_layers[i], 1)))
+      beta.append(np.zeros((hidden_layers[i], 1)))  
+
+  return weights, bias, gamma, beta
 
 def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     #One completed cycle is 2 * half_cycle iterations
@@ -283,7 +288,7 @@ def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate):
     bias[i] = bias[i] - learning_rate * grad_bias[i]
   return weights, bias
 
-def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles, do_plot = False, do_batchNorm = False, name_of_file=""):
+def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles,gamma, beta, do_plot = False, do_batchNorm = False, name_of_file=""):
   eta_min = 1e-5
   eta_max = 1e-1
   step_size = (data_train.shape[1] / batch_size)*5
@@ -318,7 +323,7 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       labels_batch = labels_train[:, start:end]
  
       # Relued layers and scores
-      layers, scores_list = forward_pass(data_batch, weights, bias, do_batchNorm=do_batchNorm)
+      layers, scores_list, _ ,_ = forward_pass(data_batch, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)
 
       # Backpropagation
       grad_weights, grad_bias = back_pass(layers, labels_batch, weights, reguliser, layers[-1], scores_list[-1], None, None, None, None, do_batchNorm=do_batchNorm)
@@ -384,7 +389,7 @@ def main():
   labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
   # Initialising the network
-  weights, bias = init_network(data_train, [50,30,20,20,10,10,10,10], he = False)
+  weights, bias, gamma,beta = init_network(data_train, [50,30,20,20,10,10,10,10], he = False)
 
   print("Size of the data_train: ", data_train.shape)
  
@@ -403,7 +408,9 @@ def main():
     'cycles': 2,
     'do_plot': True,
     'do_batchNorm': True,
-    'name_of_file': "SGD_minibatch"
+    'name_of_file': "SGD_minibatch",
+    'gamma': gamma,
+    'beta': beta
 }
   
   weights, bias = sgd_minibatch(**config)
