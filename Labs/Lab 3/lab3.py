@@ -166,6 +166,7 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
       layers.append(relu(scores_list[-1])) # Get the relu of the scores and append them to the list
     scores_list.append(get_scores(layers[-1], weights[-1], bias[-1])) 
     layers.append(softmax(scores_list[-1])) # Softmax of the last layer and append it to the list
+    return layers, scores_list, None, None, None
   else:
     layers = list() # List of layers
     scores_list = list() # List of scores for each layer
@@ -191,7 +192,7 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
     # Get the scores and append them to the list
     scores_list.append(get_scores(layers[-1], weights[-1], bias[-1]))
     layers.append(softmax(scores_list[-1])) # Softmax of the last layer and append it to the list   
-  return layers, scores_list,batch_normalised_scores, mean_list, variance_list, 
+    return layers, scores_list,batch_normalised_scores, mean_list, variance_list, 
   
 
 def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, mean = None, var = None, do_batchNorm = False):
@@ -317,15 +318,18 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
 
-def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate, gamma, beta, grad_gamma, grad_beta):
+def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate, gamma, beta, grad_gamma, grad_beta, do_batchNorm):
   for i in range(len(weights)):
     weights[i] = weights[i] - learning_rate * grad_weights[i]
     bias[i] = bias[i] - learning_rate * grad_bias[i]
-
+  if do_batchNorm:
   # Update gamma and beta
-  for i in range(len(grad_gamma)):
-    gamma[i] = gamma[i] - learning_rate * grad_gamma[i]
-    beta[i] = beta[i] - learning_rate * grad_beta[i]
+    for i in range(len(grad_gamma)):
+      gamma[i] = gamma[i] - learning_rate * grad_gamma[i]
+      beta[i] = beta[i] - learning_rate * grad_beta[i]
+  else:
+    gamma = None
+    beta = None
   return weights, bias, gamma, beta
 
 def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles,gamma, beta, do_plot = False, do_batchNorm = False, name_of_file=""):
@@ -367,7 +371,7 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       grad_weights, grad_bias, grad_gamma, grad_beta = back_pass(layers, labels_batch, weights, reguliser, layers[-1], scores_list[-1], scores_normalised, gamma, mean_list, variance_list, do_batchNorm=do_batchNorm)
     
       # Update the weights and bias
-      weights, bias,gamma,beta  = update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate, gamma, beta, grad_gamma, grad_beta)
+      weights, bias,gamma,beta  = update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate, gamma, beta, grad_gamma, grad_beta, do_batchNorm=do_batchNorm)
   
       # Update the learning rate
       current_iteration = epoch * updates_per_epoch + batch
@@ -459,12 +463,37 @@ def main():
     'cycles': 2,
     'do_plot': True,
     'do_batchNorm': True,
-    'name_of_file': "SGD_minibatch",
+    'name_of_file': "Batch_normalisation_50_50_10_reg_0.005",
     'gamma': gamma,
     'beta': beta
-}
+}  
+  weights, bias = sgd_minibatch(**config)
   
-  weights1, bias1, = sgd_minibatch(**config)
+  # Initialising the network again
+  weights, bias, gamma,beta = init_network(data_train, [50,50,10], he = False)
+  
+  config2 = {
+  'data_train': data_train,
+  'data_val': data_val,
+  'data_test': data_test,
+  'weights': weights,
+  'bias': bias,
+  'labels_train': labels_train,
+  'labels_val': labels_val,
+  'labels_test': labels_test,
+  'learning_rate': 0.01,
+  'reguliser': 0.005,
+  'batch_size': 100,
+  'cycles': 2,
+  'do_plot': True,
+  'do_batchNorm': False,
+  'name_of_file': "No-Batch_normalisation_50_50_10_reg_0.005",
+  'gamma': gamma,
+  'beta': beta
+}
+
+
+  weights2, bias2 = sgd_minibatch(**config2)
 
 
 if __name__ == "__main__":
