@@ -133,6 +133,11 @@ def get_scores(data,weight, bias):
 def relu(s):
   return np.maximum(0, s)
 
+def batch_normalize(score, mean, variance):
+  # Taken straight from the lecture notes <-- I wouldn't have written it like this
+  return np.diag(pow(variance + np.finfo(float).eps, -1 / 2)) @ (score - mean[:, np.newaxis])
+
+
 def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var = None, do_batchNorm = False):
   """@docstring:
   Forward pass of the network
@@ -151,7 +156,31 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
     scores_list.append(get_scores(layers[-1], weights[-1], bias[-1])) 
     layers.append(softmax(scores_list[-1])) # Softmax of the last layer and append it to the list
   else:
-    print("Not implemented yet")
+    layers = list() # List of layers
+    scores_list = list() # List of scores for each layer
+    batch_normalised_scores = list()  # List of batch normalised scores for each layer
+    mean_list = list()  # List of average scores for each layer
+    variance_list = list()  # List of variances for each layer
+    # Data is the first layer
+    layers.append(np.copy(data)) 
+    for i in range(len(weights)-1):
+      # Get the scores and append them to the list
+      scores_list.append(get_scores(layers[-1], weights[i], bias[i]))
+      # Get the mean and variance of the scores and append them to the list
+      if mean is None and var is None:
+        mean_list.append(np.mean(scores_list[-1], axis=1))
+        variance_list.append(np.var(scores_list[-1], axis=1))
+      else:
+        mean_list.append(mean[i])
+        variance_list.append(var[i])
+      # Get the batch normalised scores and append them to the list
+      batch_normalised_scores.append(batch_normalize(scores_list[-1], mean_list[-1], variance_list[-1]))
+      s_tilde = gamma[i] * batch_normalised_scores[-1] + beta[i]
+      layers.append(relu(s_tilde)) # Get the relu of the scores and append them to the list
+    # Get the scores and append them to the list
+    scores_list.append(get_scores(layers[-1], weights[-1], bias[-1]))
+    layers.append(softmax(scores_list[-1])) # Softmax of the last layer and append it to the list   
+
   return layers, scores_list
   
 
@@ -168,6 +197,7 @@ def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, m
   weights_gradients = list()
   bias_gradients = list()
   if not do_batchNorm:
+
     # Last layer
     g = -(labels-softmax)
 
@@ -180,10 +210,11 @@ def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, m
       ind[ind>0] = 1 
       g = g * ind 
     weights_gradients.reverse(), bias_gradients.reverse()
-
-    
-
     return weights_gradients, bias_gradients
+  else:
+    print("Not implemented on Backward pass yet")
+    sys.exit(0)
+    
 
 def get_loss(data,labels,weights,bias,reg, probs):
   loss_log = - np.log(np.sum(labels * probs, axis=0)) # dim = (N, 1)
@@ -353,7 +384,7 @@ def main():
   labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
   # Initialising the network
-  weights, bias = init_network(data_train, [50,50,50,10], he = False)
+  weights, bias = init_network(data_train, [50,30,20,20,10,10,10,10], he = False)
 
   print("Size of the data_train: ", data_train.shape)
  
@@ -371,68 +402,12 @@ def main():
     'batch_size': 100,
     'cycles': 2,
     'do_plot': True,
-    'do_batchNorm': False,
+    'do_batchNorm': True,
     'name_of_file': "SGD_minibatch"
 }
+  
   weights, bias = sgd_minibatch(**config)
 
-"""
-  # Get accuracy
-  print("Shape of the weights:" , weights[0].shape)
-  print("Shape of the bias:" , bias[0].shape)
-  print("Shape of the data:" , data_train.shape)
-  accuracy = compute_accuracy(data_train, labels_train, weights, bias)
-  print("Accuracy 1: ", accuracy)
-  # get the loss
-  probs = forward_pass(data_train, weights, bias)[0][-1]
-  loss = get_loss(data_train, labels_train, weights, bias, 0, probs)
-  print("Loss 1: ", loss)
 
-  # Forward pass
-  layers, scores_list = forward_pass(data_train, weights, bias)
-
-  # Backward pass
-  grad_weights, grad_bias = back_pass(layers, labels_train, weights, 0, layers[-1], scores_list[-1], None, None, None, None, False)
-  print("done")
-  """
-
-"""
-
-  # Update the weights and bias
-  for i in range(len(weights)):
-    weights[i] = weights[i] - 0.1 * grad_weights[i]
-    bias[i] = bias[i] - 0.1 * grad_bias[i]
-  
-  print("shape of the weights:", weights[0].shape)
-  print("shape of the bias:", bias[0].shape)
-  print("shape of the data:", data_train.shape)
-  
-  # Get accuracy
-  accuracy = compute_accuracy(data_train, labels_train, weights, bias)
-  print("Accuracy 2: ", accuracy)
-  # get the loss
-  probs = forward_pass(data_train, weights, bias)[0][-1]
-  loss = get_loss(data_train, labels_train, weights, bias, 0, probs)
-  print("Loss 2: ", loss)
-
-  # Do forward and backward pass again
-  layers, scores_list = forward_pass(data_train, weights, bias)
-  grad_weights, grad_bias = back_pass(layers, labels_train, weights, 0, layers[-1], scores_list[-1], None, None, None, None, False)
-
-  # Update the weights and bias
-  for i in range(len(weights)):
-    weights[i] = weights[i] - 0.1 * grad_weights[i]
-    bias[i] = bias[i] - 0.1 * grad_bias[i]
-
-  # Get accuracy
-  accuracy = compute_accuracy(data_train, labels_train, weights, bias)
-  print("Accuracy 3: ", accuracy)
-  # get the loss
-  probs = forward_pass(data_train, weights, bias)[0][-1]
-  loss = get_loss(data_train, labels_train, weights, bias, 0, probs)
-  print("Loss 3: ", loss)
-
-  """
-  
 if __name__ == "__main__":
   main()
