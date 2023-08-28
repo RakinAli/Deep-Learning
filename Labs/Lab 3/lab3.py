@@ -255,7 +255,7 @@ def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate):
 def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles, do_plot = False, do_batchNorm = False, name_of_file=""):
   eta_min = 1e-5
   eta_max = 1e-1
-  step_size = (data_train.shape[1] / batch_size)*2
+  step_size = (data_train.shape[1] / batch_size)*5
   total_updates = 2 * step_size * cycles
   epochs = int(np.ceil(total_updates / (data_train.shape[1] / batch_size)))
   updates_per_epoch = int((data_train.shape[1] / batch_size))  # Number of updates per epoch
@@ -287,10 +287,10 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       labels_batch = labels_train[:, start:end]
  
       # Relued layers and scores
-      layers, scores_list = forward_pass(data_batch, weights, bias)
+      layers, scores_list = forward_pass(data_batch, weights, bias, do_batchNorm=do_batchNorm)
 
       # Backpropagation
-      grad_weights, grad_bias = back_pass(layers, labels_batch, weights, 0, layers[-1], scores_list[-1], None, None, None, None, False)
+      grad_weights, grad_bias = back_pass(layers, labels_batch, weights, reguliser, layers[-1], scores_list[-1], None, None, None, None, do_batchNorm=do_batchNorm)
     
       # Update the weights and bias
       weights, bias = update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate)
@@ -300,17 +300,17 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       learning_rate = cyclical_update(current_iteration, step_size, eta_min, eta_max)
        
     if do_plot:
-      train_loss.append(get_loss(data_train, labels_train, weights, bias, 0, forward_pass(data_train, weights, bias)[0][-1]))
-      vaidation_loss.append(get_loss(data_val, labels_val, weights, bias, 0, forward_pass(data_val, weights, bias)[0][-1]))
-      test_loss.append(get_loss(data_test, labels_test, weights, bias, 0, forward_pass(data_test, weights, bias)[0][-1]))
+      train_loss.append(get_loss(data_train, labels_train, weights, bias, reguliser, forward_pass(data_train, weights, bias, do_batchNorm=do_batchNorm)[0][-1]))
+      vaidation_loss.append(get_loss(data_val, labels_val, weights, bias, reguliser, forward_pass(data_val, weights, bias,do_batchNorm=do_batchNorm)[0][-1]))
+      test_loss.append(get_loss(data_test, labels_test, weights, bias, reguliser, forward_pass(data_test, weights, bias,do_batchNorm=do_batchNorm)[0][-1]))
 
       train_accuracy.append(compute_accuracy(data_train, labels_train, weights, bias))
       validation_accuracy.append(compute_accuracy(data_val, labels_val, weights, bias))
       test_accuracy.append(compute_accuracy(data_test, labels_test, weights, bias))
 
-      train_cost.append(compute_cost(data_train, labels_train, weights, bias, 0, forward_pass(data_train, weights, bias)[0][-1]))
-      validation_cost.append(compute_cost(data_val, labels_val, weights, bias, 0, forward_pass(data_val, weights, bias)[0][-1]))
-      test_cost.append(compute_cost(data_test, labels_test, weights, bias, 0, forward_pass(data_test, weights, bias)[0][-1]))
+      train_cost.append(compute_cost(data_train, labels_train, weights, bias, reguliser, forward_pass(data_train, weights, bias)[0][-1]))
+      validation_cost.append(compute_cost(data_val, labels_val, weights, bias, reguliser, forward_pass(data_val, weights, bias)[0][-1]))
+      test_cost.append(compute_cost(data_test, labels_test, weights, bias, reguliser, forward_pass(data_test, weights, bias)[0][-1]))
 
       step_list.append(epoch)
 
@@ -346,21 +346,35 @@ def do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validatio
 
 def main():
   #Getting started
-  data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = read_data(5000)
+  data_train, labels_train, data_val, labels_val, data_test, labels_test, labels = read_data(5000)  
 
   # Preprocessing
   data_train, data_val, data_test = normalise_all(data_train, data_val, data_test)
   labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
   # Initialising the network
-  weights, bias = init_network(data_train, [50,50,10], he = False)
+  weights, bias = init_network(data_train, [50,50,50,10], he = False)
 
-  # Get the softmax of the last layer
-  probs = forward_pass(data_train, weights, bias)[0][-1]
-
-  # sgd_minibatch
-  weights, bias = sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, 0.01, 0.001, 512, 2, do_plot = True, do_batchNorm = False, name_of_file="SGD_minibatch")
-
+  print("Size of the data_train: ", data_train.shape)
+ 
+  config = {
+    'data_train': data_train,
+    'data_val': data_val,
+    'data_test': data_test,
+    'weights': weights,
+    'bias': bias,
+    'labels_train': labels_train,
+    'labels_val': labels_val,
+    'labels_test': labels_test,
+    'learning_rate': 0.01,
+    'reguliser': 0,
+    'batch_size': 100,
+    'cycles': 2,
+    'do_plot': True,
+    'do_batchNorm': False,
+    'name_of_file': "SGD_minibatch"
+}
+  weights, bias = sgd_minibatch(**config)
 
 """
   # Get accuracy
