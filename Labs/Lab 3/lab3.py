@@ -138,6 +138,17 @@ def batch_normalize(score, mean, variance):
   norm = np.diag(pow(variance + np.finfo(float).eps, -1 / 2)) @ (score - mean[:, np.newaxis])
   return norm
 
+def batch_normalised_backpass(g, s, mean, var):
+  # Taken from the assignment notes
+  sigma1 = np.power(var + np.finfo(float).eps, -1 / 2).T[:, np.newaxis]
+  sigma2 = np.power(var + np.finfo(float).eps, -3 / 2).T[:, np.newaxis]
+  G1 = g * sigma1
+  G2 = g * sigma2
+  D = s - mean[:, np.newaxis]
+  c = np.sum(G2 * D, axis=1)[:, np.newaxis]
+  gradient_batch = G1 - (1 / D.shape[1]) * np.sum(G1, axis=1)[:, np.newaxis] - (1 / g.shape[1]) * D * c
+  return gradient_batch
+
 def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var = None, do_batchNorm = False):
   """@docstring:
   Forward pass of the network
@@ -180,8 +191,7 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
     # Get the scores and append them to the list
     scores_list.append(get_scores(layers[-1], weights[-1], bias[-1]))
     layers.append(softmax(scores_list[-1])) # Softmax of the last layer and append it to the list   
-
-  return layers, scores_list, mean_list, variance_list, 
+  return layers, scores_list,batch_normalised_scores, mean_list, variance_list, 
   
 
 def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, mean = None, var = None, do_batchNorm = False):
@@ -208,10 +218,35 @@ def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, m
       ind[ind>0] = 1 
       g = g * ind 
     weights_gradients.reverse(), bias_gradients.reverse()
-    return weights_gradients, bias_gradients
+    return weights_gradients, bias_gradients, None, None
   else:
-    print("Not implemented on Backward pass yet")
-    sys.exit(0)
+    gradient_gamma = list()
+    gradient_beta = list()
+    # Last layer
+    g = -(labels-softmax)
+    weights_gradients.append(((g @ data[-2].T) /data[0].shape[1]) + 2 * reg * weights[-1]) # Derivative of the loss with respect to the weights
+    bias_gradients.append(np.sum(g, axis=1)[:, np.newaxis] / data[0].shape[1]) # Bias gradient
+    g = weights[-1].T @ g # Derivative of the loss with respect to the scores
+    ind = np.copy(data[-2]) # 
+    ind[ind>0] = 1 # Relu derivative
+    g = g * ind # Derivative of the loss with respect to the scores
+    # The rest of the layers:
+    for i in reversed(range(len(weights)-1)):
+      gradient_gamma.append(np.sum(g * s_hat[i], axis=1)[:, np.newaxis] / data[0].shape[1])
+      gradient_beta.append(np.sum(g, axis=1)[:, np.newaxis] / data[0].shape[1])
+      g = gamma[i] * g
+      g = batch_normalised_backpass(g, scores[i], mean[i], var[i])
+
+      weights_gradients.append(((g @ data[i].T) /data[0].shape[1]) + 2 * reg * weights[i]) # Derivative of the loss with respect to the weights
+      bias_gradients.append(np.sum(g, axis=1)[:, np.newaxis] / data[0].shape[1]) # Bias gradient
+      if i>0:
+        g = weights[i].T @ g # Previous layer 
+        ind = np.copy(data[i]) #
+        ind[ind>0] = 1 # Relu derivative
+        g = g * ind # Derivative of the loss with respect to the scores
+
+    weights_gradients.reverse(), bias_gradients.reverse(), gradient_gamma.reverse(), gradient_beta.reverse()
+    return weights_gradients, bias_gradients, gradient_gamma, gradient_beta
     
 
 def get_loss(data,labels,weights,bias,reg, probs):
@@ -221,7 +256,7 @@ def get_loss(data,labels,weights,bias,reg, probs):
   return loss
 
 def compute_accuracy(data, labels, weights, bias, gamma=None, beta=None, mean=None, var=None, do_batchNorm=False):
-  probs = forward_pass(data, weights, bias, gamma, beta, mean, var, do_batchNorm=False)[0][-1] # Softmax of the last layer
+  probs = forward_pass(data, weights, bias, gamma, beta, mean, var, do_batchNorm=do_batchNorm)[0][-1] # Softmax of the last layer
   predictions = np.argmax(probs, axis=0)
   labels = np.argmax(labels, axis=0)
   total_correct = np.sum(predictions == labels) / len(labels)
@@ -282,11 +317,16 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
 
-def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate):
+def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate, gamma, beta, grad_gamma, grad_beta):
   for i in range(len(weights)):
     weights[i] = weights[i] - learning_rate * grad_weights[i]
     bias[i] = bias[i] - learning_rate * grad_bias[i]
-  return weights, bias
+
+  # Update gamma and beta
+  for i in range(len(grad_gamma)):
+    gamma[i] = gamma[i] - learning_rate * grad_gamma[i]
+    beta[i] = beta[i] - learning_rate * grad_beta[i]
+  return weights, bias, gamma, beta
 
 def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles,gamma, beta, do_plot = False, do_batchNorm = False, name_of_file=""):
   eta_min = 1e-5
@@ -296,9 +336,7 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
   epochs = int(np.ceil(total_updates / (data_train.shape[1] / batch_size)))
   updates_per_epoch = int((data_train.shape[1] / batch_size))  # Number of updates per epoch
   total_iterations = epochs * updates_per_epoch
-
   epochs = int(total_iterations / updates_per_epoch)
-
 
   # For plotting
   train_loss = list()
@@ -323,19 +361,19 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       labels_batch = labels_train[:, start:end]
  
       # Relued layers and scores
-      layers, scores_list, _ ,_ = forward_pass(data_batch, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)
+      layers, scores_list, scores_normalised ,mean_list, variance_list = forward_pass(data_batch, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)
 
       # Backpropagation
-      grad_weights, grad_bias = back_pass(layers, labels_batch, weights, reguliser, layers[-1], scores_list[-1], None, None, None, None, do_batchNorm=do_batchNorm)
+      grad_weights, grad_bias, grad_gamma, grad_beta = back_pass(layers, labels_batch, weights, reguliser, layers[-1], scores_list[-1], scores_normalised, gamma, mean_list, variance_list, do_batchNorm=do_batchNorm)
     
       # Update the weights and bias
-      weights, bias = update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate)
+      weights, bias,gamma,beta  = update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate, gamma, beta, grad_gamma, grad_beta)
   
       # Update the learning rate
       current_iteration = epoch * updates_per_epoch + batch
       learning_rate = cyclical_update(current_iteration, step_size, eta_min, eta_max)
        
-    if do_plot:
+    if do_plot and not do_batchNorm:
       train_loss.append(get_loss(data_train, labels_train, weights, bias, reguliser, forward_pass(data_train, weights, bias, do_batchNorm=do_batchNorm)[0][-1]))
       vaidation_loss.append(get_loss(data_val, labels_val, weights, bias, reguliser, forward_pass(data_val, weights, bias,do_batchNorm=do_batchNorm)[0][-1]))
       test_loss.append(get_loss(data_test, labels_test, weights, bias, reguliser, forward_pass(data_test, weights, bias,do_batchNorm=do_batchNorm)[0][-1]))
@@ -347,7 +385,20 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       train_cost.append(compute_cost(data_train, labels_train, weights, bias, reguliser, forward_pass(data_train, weights, bias)[0][-1]))
       validation_cost.append(compute_cost(data_val, labels_val, weights, bias, reguliser, forward_pass(data_val, weights, bias)[0][-1]))
       test_cost.append(compute_cost(data_test, labels_test, weights, bias, reguliser, forward_pass(data_test, weights, bias)[0][-1]))
+      step_list.append(epoch)
 
+    elif do_batchNorm and do_plot:
+      train_loss.append(get_loss(data_train, labels_train, weights, bias, reguliser, forward_pass(data_train, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm)[0][-1]))
+      vaidation_loss.append(get_loss(data_val, labels_val, weights, bias, reguliser, forward_pass(data_val, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm)[0][-1]))
+      test_loss.append(get_loss(data_test, labels_test, weights, bias, reguliser, forward_pass(data_test, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm)[0][-1]))
+
+      train_accuracy.append(compute_accuracy(data_train, labels_train, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm))
+      validation_accuracy.append(compute_accuracy(data_val, labels_val, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm))
+      test_accuracy.append(compute_accuracy(data_test, labels_test, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm))
+
+      train_cost.append(compute_cost(data_train, labels_train, weights, bias, reguliser, forward_pass(data_train, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm)[0][-1]))
+      validation_cost.append(compute_cost(data_val, labels_val, weights, bias, reguliser, forward_pass(data_val, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm)[0][-1]))
+      test_cost.append(compute_cost(data_test, labels_test, weights, bias, reguliser, forward_pass(data_test, weights, bias, gamma, beta, mean_list, variance_list, do_batchNorm=do_batchNorm)[0][-1]))
       step_list.append(epoch)
 
   if do_plot:
@@ -389,7 +440,7 @@ def main():
   labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
   # Initialising the network
-  weights, bias, gamma,beta = init_network(data_train, [50,30,20,20,10,10,10,10], he = False)
+  weights, bias, gamma,beta = init_network(data_train, [50,50,10], he = False)
 
   print("Size of the data_train: ", data_train.shape)
  
@@ -403,7 +454,7 @@ def main():
     'labels_val': labels_val,
     'labels_test': labels_test,
     'learning_rate': 0.01,
-    'reguliser': 0,
+    'reguliser': 0.005,
     'batch_size': 100,
     'cycles': 2,
     'do_plot': True,
@@ -413,7 +464,7 @@ def main():
     'beta': beta
 }
   
-  weights, bias = sgd_minibatch(**config)
+  weights1, bias1, = sgd_minibatch(**config)
 
 
 if __name__ == "__main__":
