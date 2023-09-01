@@ -248,7 +248,6 @@ def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma, mean, v
     weights_gradients.reverse(), bias_gradients.reverse(), gamma_gradients.reverse(), beta_gradients.reverse()
     return weights_gradients, bias_gradients, gamma_gradients, beta_gradients
 
-
 def get_loss(data,labels,probs):
   loss_log = - np.log(np.sum(labels * probs, axis=0)) # dim = (N, 1)
   loss = np.sum(loss_log)/data.shape[1] 
@@ -276,15 +275,12 @@ def init_network(data, hidden_layers, he = False, Sigma = None, do_batchNorm = F
     number = 2
   else: 
     number = 1
-
   # This is the first layer
   if Sigma is not None:
     print("Not implemented yet")
   else:
     weights.append(np.random.normal(0, np.sqrt(number / data.shape[0]),(hidden_layers[0], data.shape[0])))  # Dim: m x d
-
   bias.append(np.zeros((hidden_layers[0], 1))) # Dim: m x 1
-
   # This is the hidden layers
   for i in range(1, len(hidden_layers)):
     if Sigma is not None:
@@ -292,7 +288,6 @@ def init_network(data, hidden_layers, he = False, Sigma = None, do_batchNorm = F
     else:
       weights.append(np.random.normal(0, np.sqrt(number / hidden_layers[i-1]),(hidden_layers[i], hidden_layers[i-1])))
     bias.append(np.zeros((hidden_layers[i], 1)))
-
   if do_batchNorm:
     gamma = list()
     beta = list()
@@ -306,21 +301,17 @@ def init_network(data, hidden_layers, he = False, Sigma = None, do_batchNorm = F
 def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
     #One completed cycle is 2 * half_cycle iterations
     current_cycle = int(current_iteration / (2 * half_cycle))  
-
     # If the current iteration is in the first half of the cycle, the learning rate is increasing
     if 2 * current_cycle * half_cycle <= current_iteration <= (2 * current_cycle + 1) * half_cycle:
         return min_learning + ((current_iteration - 2 * current_cycle * half_cycle) / half_cycle) * (max_learning - min_learning)
-    
     # If the current iteration is in the second half of the cycle, the learning rate is decreasing
     if (2 * current_cycle + 1) * half_cycle <= current_iteration <= 2 * (current_cycle + 1) * half_cycle:
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
-
 
 def update_weights_bias(weights, bias, gamma, beta, grad_weights, grad_bias, learning_rate, grad_gamma, grad_beta, do_batchNorm = False):
   for i in range(len(weights)):
     weights[i] = weights[i] - learning_rate * grad_weights[i]
     bias[i] = bias[i] - learning_rate * grad_bias[i]
-  
   if do_batchNorm:
     #Update gamma and beta
     for i in range(len(gamma)):
@@ -337,9 +328,7 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
   epochs = int(np.ceil(total_updates / (data_train.shape[1] / batch_size)))
   updates_per_epoch = int((data_train.shape[1] / batch_size))  # Number of updates per epoch
   total_iterations = epochs * updates_per_epoch
-
   epochs = int(total_iterations / updates_per_epoch)
-
 
   # For plotting
   train_loss = list()
@@ -400,7 +389,6 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
     data_train = data_train[:, random_indices]
     labels_train = labels_train[:, random_indices]
       
-
   if do_plot:
     do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validation_accuracy, test_accuracy, train_cost, validation_cost, test_cost, step_list, name_of_file=name_of_file)
 
@@ -532,8 +520,6 @@ def main():
   data_train, data_val, data_test = normalise_all(data_train, data_val, data_test)
   labels_train, labels_val, labels_test = encode_all(labels_train, labels_val, labels_test)
 
-
-
   print("Do you want to do batch normalisation? (y/n)")
   answer = input()
   if answer == "y":
@@ -542,7 +528,7 @@ def main():
     do_batchNorm = False
   
   # Initialising the network
-  weights, bias, gamma, beta = init_network(data_train, [10, 10], he =False, Sigma =None, do_batchNorm=do_batchNorm)
+  weights, bias, gamma, beta = init_network(data_train, [50, 30, 20,20, 10, 10, 10, 10], he =False, Sigma =None, do_batchNorm=do_batchNorm)
 
 
   # Comparing gradients
@@ -550,16 +536,6 @@ def main():
   answer = input()
   if answer == "y":
     compareGradients(data_train[:, 0:100], labels_train[:, 0:100], weights, bias, gamma, beta, 0, do_batchNorm, h=1e-5)
-  
- 
-  print("Testing backpropagation with batch normalisation...")
-
-  # Testing backpropagation with batch normalisation
-  layers, scores, s_hat, mean, var  = forward_pass(data_train[:, 0:100], weights, bias, gamma, beta, None, None, do_batchNorm)
-  print("Mean :",mean)
-  print("Var: ", var)  
-  grad_weights, grad_bias, grad_gamma, grad_beta = back_pass(layers, labels_train[:, 0:100], weights, 0, layers[-1], scores, s_hat, gamma, mean, var, do_batchNorm)
-  print("Done!")
 
   print("Do you want to train the network? (y/n)")
   answer = input()
@@ -576,12 +552,12 @@ def main():
       'labels_val': labels_val,
       'labels_test': labels_test,
       'learning_rate': 0.01,
-      'reguliser': 0,
+      'reguliser': 0.0,
       'batch_size': 100,
       'cycles': 2,
       'do_plot': True,
       'do_batchNorm': do_batchNorm,
-      'name_of_file': "SGD_minibatch_BatchNorm_9layers",
+      'name_of_file': "50-30-20-20-10-10-10-10_No_BatchNorm_heFALSE_reg-0.0",
       'gamma': gamma,
       'beta': beta
   }
