@@ -181,19 +181,17 @@ def forward_pass(data, weights, bias, gamma=None, beta= None, mean = None, var =
     layers.append(softmax(scores_list[-1])) 
     return layers, scores_list, s_hat, mean_list, variance_list
 
-def batch_norm_backpass(g,s,mean,var):
-  # Batch normalisation for backpass
-  sigma_1 = np.power(var + np.finfo(float).eps, -0.5).T[:, np.newaxis]
-  sigma_2 = np.power(var + np.finfo(float).eps, -1.5).T[:, np.newaxis]
-  g1 = g * sigma_1
-  g2 = g * sigma_2
-  d = s - mean[:, np.newaxis]
-  c = np.sum(g2 * d, axis=1)[:, np.newaxis]
-  g_batch = g1 - (1 / g.shape[1]) * np.sum(g1, axis=1)[:, np.newaxis] - (1 / g.shape[1]) * d * c
+def batch_norm_backpass(g, s, mean, variance):
+  sigma_1 = ((variance + np.finfo(np.float64).eps) ** -0.5).T[:, np.newaxis]
+  sigma_2 = ((variance + np.finfo(np.float64).eps) ** -1.5).T[:, np.newaxis]
+  G_1 = g * sigma_1
+  G_2 = g * sigma_2
+  D = s - mean[:, np.newaxis]
+  c = np.dot(G_2 * D, np.ones((g.shape[1], 1)))
+  G_batch = G_1 - (1 / g.shape[1]) * np.dot(G_1, np.ones((g.shape[1], 1))) - ((1 / g.shape[1])) * (D * c)
+  return G_batch
 
-  return g_batch
-
-def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, mean = None, var = None, do_batchNorm = False):
+def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma, mean, var, do_batchNorm = False):
   """@docstring:
   Input:
     data, labels, weights, reg, softmax, scores, s_hat, gamma= None, mean = None, var = None, do_batchNorm = False
@@ -236,6 +234,7 @@ def back_pass(data, labels, weights, reg, softmax, scores, s_hat, gamma= None, m
       beta_gradients.append(beta_deriv)
       g = g * gamma[i]
       g = batch_norm_backpass(g, scores[i], mean[i], var[i])
+      # Update the p
       w_grad = ((g @ data[i].T) / data[0].shape[1]) + 2 * reg * weights[i]
       b_grad = np.sum(g, axis=1)[:, np.newaxis] / data[0].shape[1]
       weights_gradients.append(w_grad)
@@ -256,8 +255,7 @@ def get_loss(data,labels,probs):
 
   return loss
 
-def compute_accuracy(data, labels, weights, bias, gamma=None, beta=None, mean=None, var=None, do_batchNorm=False):
-  probs = forward_pass(data, weights, bias, gamma, beta, mean, var, do_batchNorm=do_batchNorm)[0][-1] # Softmax of the last layer
+def compute_accuracy(data, labels, weights, bias, probs):
   predictions = np.argmax(probs, axis=0)
   labels = np.argmax(labels, axis=0)
   total_correct = np.sum(predictions == labels) / len(labels)
@@ -318,11 +316,18 @@ def cyclical_update(current_iteration, half_cycle, min_learning, max_learning):
         return max_learning - (current_iteration - (2 * current_cycle + 1) * half_cycle) / half_cycle * (max_learning - min_learning)
 
 
-def update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate):
+def update_weights_bias(weights, bias, gamma, beta, grad_weights, grad_bias, learning_rate, grad_gamma, grad_beta, do_batchNorm = False):
   for i in range(len(weights)):
     weights[i] = weights[i] - learning_rate * grad_weights[i]
     bias[i] = bias[i] - learning_rate * grad_bias[i]
-  return weights, bias
+  
+  if do_batchNorm:
+    #Update gamma and beta
+    for i in range(len(gamma)):
+      gamma[i] = gamma[i] - learning_rate * grad_gamma[i]
+      beta[i] = beta[i] - learning_rate * grad_beta[i]
+    return weights, bias, gamma, beta
+  return weights, bias, None, None
 
 def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles, do_plot = False, do_batchNorm = False, name_of_file="", gamma=None, beta=None):
   eta_min = 1e-5
@@ -363,35 +368,38 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       layers, scores_list, s_hat, mean_list, variance_list = forward_pass(data_batch, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)
 
       # Backpropagation
-      grad_weights, grad_bias, grad_gamma, grad_beta = back_pass(layers, labels_train[:, 0:100], weights, 0, layers[-1], scores_list[-1], s_hat, gamma, mean_list, variance_list, do_batchNorm)
+      grad_weights, grad_bias, grad_gamma, grad_beta = back_pass(layers, labels_batch, weights, reguliser, layers[-1], scores_list, s_hat, gamma, mean_list, variance_list, do_batchNorm)
     
       # Update the weights and bias
-      weights, bias = update_weights_bias(weights, bias, grad_weights, grad_bias, learning_rate)
+      weights, bias, gamma, beta  = update_weights_bias(weights, bias, gamma, beta, grad_weights, grad_bias, learning_rate,grad_gamma,grad_beta,do_batchNorm)
   
       # Update the learning rate
       current_iteration = epoch * updates_per_epoch + batch
       learning_rate = cyclical_update(current_iteration, step_size, eta_min, eta_max)
     
-    #Randomly shuffle the data
+    if do_plot:
+      probs_train = forward_pass(data_train, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)[0][-1]
+      probs_validation = forward_pass(data_val,weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)[0][-1]
+      probs_test = forward_pass(data_test,weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)[0][-1]
+
+      train_loss.append(get_loss(data_train, labels_train,probs_train))
+      vaidation_loss.append(get_loss(data_val, labels_val,probs_validation))
+      test_loss.append(get_loss(data_test, labels_test, probs_test))
+
+      train_accuracy.append(compute_accuracy(data_train, labels_train, weights, bias,probs_train))
+      validation_accuracy.append(compute_accuracy(data_val, labels_val, weights, bias,probs_validation))
+      test_accuracy.append(compute_accuracy(data_test, labels_test, weights, bias,probs_test))
+
+      train_cost.append(compute_cost(data_train, labels_train, weights, bias, reguliser, probs_train))
+      validation_cost.append(compute_cost(data_val, labels_val, weights, bias, reguliser, probs_validation))
+      test_cost.append(compute_cost(data_test, labels_test, weights, bias, reguliser, probs_test))
+      step_list.append(epoch)
+
+      #Randomly shuffle the data
     random_indices = np.random.permutation(data_train.shape[1])
     data_train = data_train[:, random_indices]
     labels_train = labels_train[:, random_indices]
-
-       
-    if do_plot:
-      train_loss.append(get_loss(data_train, labels_train,forward_pass(data_train, weights, bias, do_batchNorm=do_batchNorm)[0][-1]))
-      vaidation_loss.append(get_loss(data_val, labels_val,forward_pass(data_val, weights, bias,do_batchNorm=do_batchNorm)[0][-1]))
-      test_loss.append(get_loss(data_test, labels_test, forward_pass(data_test, weights, bias,do_batchNorm=do_batchNorm)[0][-1]))
-
-      train_accuracy.append(compute_accuracy(data_train, labels_train, weights, bias))
-      validation_accuracy.append(compute_accuracy(data_val, labels_val, weights, bias))
-      test_accuracy.append(compute_accuracy(data_test, labels_test, weights, bias))
-
-      train_cost.append(compute_cost(data_train, labels_train, weights, bias, reguliser, forward_pass(data_train, weights, bias)[0][-1]))
-      validation_cost.append(compute_cost(data_val, labels_val, weights, bias, reguliser, forward_pass(data_val, weights, bias)[0][-1]))
-      test_cost.append(compute_cost(data_test, labels_test, weights, bias, reguliser, forward_pass(data_test, weights, bias)[0][-1]))
-
-      step_list.append(epoch)
+      
 
   if do_plot:
     do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validation_accuracy, test_accuracy, train_cost, validation_cost, test_cost, step_list, name_of_file=name_of_file)
@@ -495,7 +503,7 @@ def compute_gradients_slow(data, labels, weights, bias, gamma, beta, reguliser, 
 def compareGradients(data, labels, weights, bias, gamma, beta, reguliser, do_batchNorm=False, h=1e-5):
    # Takes the absolute difference between the gradients computed by the two methods
   layers, scores_list, s_hat, mean, variance  = forward_pass(data, weights, bias, gamma, beta, None, None, do_batchNorm)
-  grad_weights_fast, grad_bias_fast,grad_gamma_fast,grad_beta_fast = back_pass(layers, labels, weights, reguliser, layers[-1], scores_list[-1], s_hat, gamma, mean, variance, do_batchNorm)
+  grad_weights_fast, grad_bias_fast,grad_gamma_fast,grad_beta_fast = back_pass(layers, labels, weights, reguliser, layers[-1], scores_list, s_hat, gamma, mean, variance, do_batchNorm)
   grad_gamma = None
   grad_beta = None
 
@@ -534,7 +542,7 @@ def main():
     do_batchNorm = False
   
   # Initialising the network
-  weights, bias, gamma, beta = init_network(data_train, [10,10,10], he = False, Sigma =None, do_batchNorm=do_batchNorm)
+  weights, bias, gamma, beta = init_network(data_train, [10, 10], he =False, Sigma =None, do_batchNorm=do_batchNorm)
 
 
   # Comparing gradients
@@ -548,30 +556,36 @@ def main():
 
   # Testing backpropagation with batch normalisation
   layers, scores, s_hat, mean, var  = forward_pass(data_train[:, 0:100], weights, bias, gamma, beta, None, None, do_batchNorm)
-  grad_weights, grad_bias, grad_gamma, grad_beta = back_pass(layers, labels_train[:, 0:100], weights, 0, layers[-1], scores[-1], s_hat, gamma, mean, var, do_batchNorm)
+  print("Mean :",mean)
+  print("Var: ", var)  
+  grad_weights, grad_bias, grad_gamma, grad_beta = back_pass(layers, labels_train[:, 0:100], weights, 0, layers[-1], scores, s_hat, gamma, mean, var, do_batchNorm)
   print("Done!")
 
-
-
-  config = {
-    'data_train': data_train,
-    'data_val': data_val,
-    'data_test': data_test,
-    'weights': weights,
-    'bias': bias,
-    'labels_train': labels_train,
-    'labels_val': labels_val,
-    'labels_test': labels_test,
-    'learning_rate': 0.01,
-    'reguliser': 0,
-    'batch_size': 100,
-    'cycles': 2,
-    'do_plot': True,
-    'do_batchNorm': do_batchNorm,
-    'name_of_file': "SGD_minibatch",
-    'gamma': gamma,
-    'beta': beta
-}
+  print("Do you want to train the network? (y/n)")
+  answer = input()
+  if answer == 'n':
+    sys.exit(0)
+  else: 
+    config = {
+      'data_train': data_train,
+      'data_val': data_val,
+      'data_test': data_test,
+      'weights': weights,
+      'bias': bias,
+      'labels_train': labels_train,
+      'labels_val': labels_val,
+      'labels_test': labels_test,
+      'learning_rate': 0.01,
+      'reguliser': 0,
+      'batch_size': 100,
+      'cycles': 2,
+      'do_plot': True,
+      'do_batchNorm': do_batchNorm,
+      'name_of_file': "SGD_minibatch_BatchNorm_9layers",
+      'gamma': gamma,
+      'beta': beta
+  }
+    sgd_minibatch(**config)
 
 if __name__ == "__main__":
   main()
