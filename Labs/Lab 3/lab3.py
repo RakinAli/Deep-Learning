@@ -403,7 +403,10 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
   if do_plot:
     do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validation_accuracy, test_accuracy, train_cost, validation_cost, test_cost, step_list, name_of_file=name_of_file)
 
-  return weights, bias
+  # Get the final accuracy of the test data
+  probs_test = forward_pass(data_test, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta, mean=mean_list, var=variance_list)[0][-1]
+  final_accuracy = compute_accuracy(data_test, labels_test, weights, bias, probs_test)
+  return weights, bias, final_accuracy
 
 def calculate_weighted_average(mean_list, var_list, alpha):
   mean_av = mean_list.copy()  # Start with values from mean_list
@@ -531,7 +534,7 @@ def compareGradients(data, labels, weights, bias, gamma, beta, reguliser, do_bat
     print("No batch normalisation")
   print("Done!")
 
-def lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, do_batchNorm):
+def lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, gamma,beta, do_batchNorm):
   config = {
       'data_train': data_train,
       'data_val': data_val,
@@ -542,18 +545,78 @@ def lamba_search(data_train, data_val, data_test, weights, bias, labels_train, l
       'labels_val': labels_val,
       'labels_test': labels_test,
       'learning_rate': 0.0001,
-      'reguliser': 0.005,
       'batch_size': 100,
-      'cycles': 2,
-      'do_plot': True,
+      'cycles': 1,
+      'do_plot': False,
       'do_batchNorm': do_batchNorm,
-      'name_of_file': "Lab[50,50,10], he=True, Sigma=None, do_batchNorm=False",
+      'name_of_file': "LabchNorm=False",
       'gamma': None,
       'beta': None,
       'alpha': 0.9
   }
   
+  print("How many values would you like to search for? Number > 3")
+  number_of_values = int(input())
+  if number_of_values < 3:
+    print("Number of values must be greater than 3")
+    sys.exit(0)
+  lamda_list = list()
+  acc_list = list() # The index of acc_list corresponds to the index of lamda_list
 
+  for i in range(number_of_values):
+    print("Iteration ", i+1, " of ", number_of_values)
+    random_number = np.random.uniform(-5,-1)
+    reguliser = 10**random_number
+    lamda_list.append(reguliser)
+    print("Reguliser: ", reguliser)
+    config['reguliser'] = reguliser
+    _, _, final_accuracy = sgd_minibatch(**config)
+    acc_list.append(final_accuracy)
+  
+  # The highest accuracy is the best 
+  print("The highest accuracy is: ", np.max(acc_list))
+  print("The index of the highest accuracy is: ", np.argmax(acc_list))
+  print("The corresponding lambda is: ", lamda_list[np.argmax(acc_list)])
+
+  print("Do you want to narrow the search? (y/n)")
+  answer = input()
+  if answer == "n":
+    return lamda_list[np.argmax(acc_list)]
+  elif answer == "y":
+    narrow_lambda_list = list()
+    # Grab the three highst accuracies and their corresponding lambdas
+    highest_acc = np.max(acc_list)
+    highest_acc_index = np.argmax(acc_list)
+    highest_acc_lambda = lamda_list[highest_acc_index]
+    acc_list.pop(highest_acc_index)
+    lamda_list.pop(highest_acc_index)
+
+    second_highest_acc = np.max(acc_list)
+    second_highest_acc_index = np.argmax(acc_list)
+    second_highest_acc_lambda = lamda_list[second_highest_acc_index]
+    acc_list.pop(second_highest_acc_index)
+    lamda_list.pop(second_highest_acc_index)
+
+    # Uniformly at random choose a lambda between the two lambdas
+    for i in range(3):
+      random_number = np.random.uniform(second_highest_acc_lambda, highest_acc_lambda)
+      narrow_lambda_list.append(random_number)
+    
+    print("Starting narrow search...")
+    # Start searching for the best lambda
+    for i in range(len(narrow_lambda_list)):
+      print("Iteration ", i+1, " of ", len(narrow_lambda_list))
+      reguliser = narrow_lambda_list[i]
+      print("Reguliser: ", reguliser)
+      config['reguliser'] = reguliser
+      _, _, final_accuracy = sgd_minibatch(**config)
+      acc_list.append(final_accuracy)
+    
+    # The highest accuracy is the best
+    print("The highest accuracy is: ", np.max(acc_list))
+    print("The index of the highest accuracy is: ", np.argmax(acc_list))
+    print("The corresponding lambda is: ", narrow_lambda_list[np.argmax(acc_list)])
+    return narrow_lambda_list[np.argmax(acc_list)]
 
 def main():
   #Getting started
@@ -581,7 +644,7 @@ def main():
 
   
   # Initialising the network
-  weights, bias, gamma, beta = init_network(data_train, [50, 30, 20, 20, 10, 10, 10, 10], he =True, Sigma =Sigma, do_batchNorm=do_batchNorm)
+  weights, bias, gamma, beta = init_network(data_train, [50, 50,10], he =True, Sigma =Sigma, do_batchNorm=do_batchNorm)
 
 
   # Comparing gradients
@@ -590,12 +653,7 @@ def main():
   if answer == "y":
     compareGradients(data_train[:, 0:100], labels_train[:, 0:100], weights, bias, gamma, beta, 0, do_batchNorm, h=1e-5)
   
-  print("Do you want to do a lamba search? (y/n)")
-  answer = input()
-  if answer == "y":
-    lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, do_batchNorm)
   
-
   print("Do you want to train the network? (y/n)")
   answer = input()
   if answer == 'n':
@@ -621,8 +679,16 @@ def main():
       'beta': beta,
       'alpha': 0.9
   }
+ 
+  print("Do you want to do a lamba search? (y/n)")
+  answer = input()
+  if answer == "y":
+    good_lambda = lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, do_batchNorm)
+    config['reguliser'] = good_lambda
+  else:
+    config['reguliser'] = 0.005
   
-    sgd_minibatch(**config)
+  sgd_minibatch(**config)
 
 if __name__ == "__main__":
   main()
