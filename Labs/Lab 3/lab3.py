@@ -545,13 +545,13 @@ def lamba_search(data_train, data_val, data_test, weights, bias, labels_train, l
       'labels_val': labels_val,
       'labels_test': labels_test,
       'learning_rate': 0.0001,
-      'batch_size': 100,
+      'batch_size': 512,
       'cycles': 1,
       'do_plot': False,
       'do_batchNorm': do_batchNorm,
-      'name_of_file': "LabchNorm=False",
-      'gamma': None,
-      'beta': None,
+      'name_of_file': "search_lambda",
+      'gamma': gamma,
+      'beta': beta,
       'alpha': 0.9
   }
   
@@ -583,7 +583,12 @@ def lamba_search(data_train, data_val, data_test, weights, bias, labels_train, l
   if answer == "n":
     return lamda_list[np.argmax(acc_list)]
   elif answer == "y":
+    config['cycles'] = 2
+    config['data_train'] = data_train
+    config['labels_train'] = labels_train
+    config['batch_size'] = 100
     narrow_lambda_list = list()
+    narrow_acc_list = list()
     # Grab the three highst accuracies and their corresponding lambdas
     highest_acc = np.max(acc_list)
     highest_acc_index = np.argmax(acc_list)
@@ -609,14 +614,24 @@ def lamba_search(data_train, data_val, data_test, weights, bias, labels_train, l
       reguliser = narrow_lambda_list[i]
       print("Reguliser: ", reguliser)
       config['reguliser'] = reguliser
+      config['name_of_file'] = "Best_lambda_search"
       _, _, final_accuracy = sgd_minibatch(**config)
-      acc_list.append(final_accuracy)
-    
+      # The index of the narrow_acc_list corresponds to the index of narrow_lambda_list
+      narrow_acc_list.append(final_accuracy)
+  
+
     # The highest accuracy is the best
-    print("The highest accuracy is: ", np.max(acc_list))
-    print("The index of the highest accuracy is: ", np.argmax(acc_list))
-    print("The corresponding lambda is: ", narrow_lambda_list[np.argmax(acc_list)])
-    return narrow_lambda_list[np.argmax(acc_list)]
+    print("The highest accuracy is: ", np.max(narrow_acc_list))
+    print("The index of the highest accuracy is: ", np.argmax(narrow_acc_list))
+    print("The corresponding lambda is: ", narrow_lambda_list[np.argmax(narrow_acc_list)])
+
+    # Checking if it is better than the previous best
+    if np.max(narrow_acc_list) > highest_acc:
+      print("The narrow search was better than the previous search")
+      return narrow_lambda_list[np.argmax(narrow_acc_list)]
+    else:
+      print("The narrow search was not better than the previous search")
+      return highest_acc_lambda
 
 def main():
   #Getting started
@@ -644,7 +659,7 @@ def main():
 
   
   # Initialising the network
-  weights, bias, gamma, beta = init_network(data_train, [50, 50,10], he =True, Sigma =Sigma, do_batchNorm=do_batchNorm)
+  weights, bias, gamma, beta = init_network(data_train, [50, 30, 20, 20, 10, 10, 10, 10], he =True, Sigma =Sigma, do_batchNorm=do_batchNorm)
 
 
   # Comparing gradients
@@ -683,7 +698,7 @@ def main():
   print("Do you want to do a lamba search? (y/n)")
   answer = input()
   if answer == "y":
-    good_lambda = lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, do_batchNorm)
+    good_lambda = lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, gamma,beta, do_batchNorm)
     config['reguliser'] = good_lambda
   else:
     config['reguliser'] = 0.005
