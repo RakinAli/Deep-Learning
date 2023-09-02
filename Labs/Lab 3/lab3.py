@@ -277,14 +277,14 @@ def init_network(data, hidden_layers, he = False, Sigma = None, do_batchNorm = F
     number = 1
   # This is the first layer
   if Sigma is not None:
-    print("Not implemented yet")
+    weights.append(np.random.normal(0, Sigma, (hidden_layers[0], data.shape[0])))
   else:
     weights.append(np.random.normal(0, np.sqrt(number / data.shape[0]),(hidden_layers[0], data.shape[0])))  # Dim: m x d
   bias.append(np.zeros((hidden_layers[0], 1))) # Dim: m x 1
   # This is the hidden layers
   for i in range(1, len(hidden_layers)):
     if Sigma is not None:
-      print("Not implemented yet")
+      weights.append(np.random.normal(0, Sigma, (hidden_layers[i], weights[-1].shape[0])))
     else:
       weights.append(np.random.normal(0, np.sqrt(number / hidden_layers[i-1]),(hidden_layers[i], hidden_layers[i-1])))
     bias.append(np.zeros((hidden_layers[i], 1)))
@@ -651,15 +651,15 @@ def main():
   Sigma = None
   print("Do you want to have sigma? (y/n)")
   answer = input()
-  if answer == "y":
+  if answer == "y" or answer == "Y":
     print("What sigma do you want?")
+    # Input has to be a float
     Sigma = float(input())
   else:
     Sigma = None
 
-  
   # Initialising the network
-  weights, bias, gamma, beta = init_network(data_train, [50, 30, 20, 20, 10, 10, 10, 10], he =True, Sigma =Sigma, do_batchNorm=do_batchNorm)
+  weights, bias, gamma, beta = init_network(data_train, [50,50,10], he =False, Sigma=Sigma, do_batchNorm=do_batchNorm)
 
 
   # Comparing gradients
