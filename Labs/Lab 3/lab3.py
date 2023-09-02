@@ -323,7 +323,7 @@ def update_weights_bias(weights, bias, gamma, beta, grad_weights, grad_bias, lea
 def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles, do_plot = False, do_batchNorm = False, name_of_file="", gamma=None, beta=None, alpha=0.9):
   eta_min = 1e-5
   eta_max = 1e-1
-  step_size = (data_train.shape[1] / batch_size)*5
+  step_size = (data_train.shape[1] / batch_size)*2
   total_updates = 2 * step_size * cycles
   epochs = int(np.ceil(total_updates / (data_train.shape[1] / batch_size)))
   updates_per_epoch = int((data_train.shape[1] / batch_size))  # Number of updates per epoch
