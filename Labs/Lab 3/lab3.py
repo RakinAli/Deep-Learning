@@ -320,7 +320,7 @@ def update_weights_bias(weights, bias, gamma, beta, grad_weights, grad_bias, lea
     return weights, bias, gamma, beta
   return weights, bias, None, None
 
-def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles, do_plot = False, do_batchNorm = False, name_of_file="", gamma=None, beta=None):
+def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, learning_rate, reguliser, batch_size, cycles, do_plot = False, do_batchNorm = False, name_of_file="", gamma=None, beta=None, alpha=0.9):
   eta_min = 1e-5
   eta_max = 1e-1
   step_size = (data_train.shape[1] / batch_size)*5
@@ -343,6 +343,7 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
   validation_cost = list()
   test_cost = list()
   step_list = list()
+
   print("Epochs: ", epochs)
   print("Updates per epoch: ", updates_per_epoch)
   for epoch in tqdm(range(epochs)):
@@ -365,11 +366,21 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
       # Update the learning rate
       current_iteration = epoch * updates_per_epoch + batch
       learning_rate = cyclical_update(current_iteration, step_size, eta_min, eta_max)
+
+    # Get weighted averages
+    if do_batchNorm:
+      if batch == 0:  # First minibatch
+        mean_average = mean_list
+        variance_average = variance_list
+      else:
+        mean_average, variance_average = calculate_weighted_average(mean_list,variance_list,alpha)
+      mean_list = mean_average
+      variance_list = variance_average
     
     if do_plot:
-      probs_train = forward_pass(data_train, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)[0][-1]
-      probs_validation = forward_pass(data_val,weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)[0][-1]
-      probs_test = forward_pass(data_test,weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta)[0][-1]
+      probs_train = forward_pass(data_train, weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta, mean=mean_list, var=variance_list)[0][-1]
+      probs_validation = forward_pass(data_val,weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta,mean=mean_list, var=variance_list)[0][-1]
+      probs_test = forward_pass(data_test,weights, bias, do_batchNorm=do_batchNorm, gamma=gamma, beta=beta, mean=mean_list, var=variance_list)[0][-1]
 
       train_loss.append(get_loss(data_train, labels_train,probs_train))
       vaidation_loss.append(get_loss(data_val, labels_val,probs_validation))
@@ -393,6 +404,17 @@ def sgd_minibatch(data_train, data_val, data_test, weights, bias, labels_train, 
     do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validation_accuracy, test_accuracy, train_cost, validation_cost, test_cost, step_list, name_of_file=name_of_file)
 
   return weights, bias
+
+def calculate_weighted_average(mean_list, var_list, alpha):
+  mean_av = mean_list.copy()  # Start with values from mean_list
+  var_av = var_list.copy()    # Start with values from var_list
+
+  for i in range(len(mean_list)):
+    new_mean = alpha * mean_av[i] + (1 - alpha) * mean_list[i]
+    new_var = alpha * var_av[i] + (1 - alpha) * var_list[i]
+    mean_av[i] = new_mean  # Update mean_av in place
+    var_av[i] = new_var    # Update var_av in place
+  return mean_av, var_av
 
 def do_plotting(train_loss, vaidation_loss, test_loss, train_accuracy, validation_accuracy, test_accuracy, train_cost, validation_cost, test_cost, step_list,name_of_file=""):
   # Plotting
@@ -423,7 +445,6 @@ def compute_gradients_slow(data, labels, weights, bias, gamma, beta, reguliser, 
   grad_bias = []
   grad_gamma = []
   grad_beta = []
-  
   for j in range(len(bias)):
       grad_bias_layer = np.zeros(bias[j].shape)
       for i in tqdm(range(grad_bias_layer.shape[0])):
@@ -510,6 +531,28 @@ def compareGradients(data, labels, weights, bias, gamma, beta, reguliser, do_bat
     print("No batch normalisation")
   print("Done!")
 
+def lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, do_batchNorm):
+  config = {
+      'data_train': data_train,
+      'data_val': data_val,
+      'data_test': data_test,
+      'weights': weights,
+      'bias': bias,
+      'labels_train': labels_train,
+      'labels_val': labels_val,
+      'labels_test': labels_test,
+      'learning_rate': 0.0001,
+      'reguliser': 0.005,
+      'batch_size': 100,
+      'cycles': 2,
+      'do_plot': True,
+      'do_batchNorm': do_batchNorm,
+      'name_of_file': "Lab[50,50,10], he=True, Sigma=None, do_batchNorm=False",
+      'gamma': None,
+      'beta': None,
+      'alpha': 0.9
+  }
+  
 
 
 def main():
@@ -527,8 +570,18 @@ def main():
   else:
     do_batchNorm = False
   
+  Sigma = None
+  print("Do you want to have sigma? (y/n)")
+  answer = input()
+  if answer == "y":
+    print("What sigma do you want?")
+    Sigma = float(input())
+  else:
+    Sigma = None
+
+  
   # Initialising the network
-  weights, bias, gamma, beta = init_network(data_train, [50, 30, 20,20, 10, 10, 10, 10], he =False, Sigma =None, do_batchNorm=do_batchNorm)
+  weights, bias, gamma, beta = init_network(data_train, [50, 30, 20, 20, 10, 10, 10, 10], he =True, Sigma =Sigma, do_batchNorm=do_batchNorm)
 
 
   # Comparing gradients
@@ -536,6 +589,12 @@ def main():
   answer = input()
   if answer == "y":
     compareGradients(data_train[:, 0:100], labels_train[:, 0:100], weights, bias, gamma, beta, 0, do_batchNorm, h=1e-5)
+  
+  print("Do you want to do a lamba search? (y/n)")
+  answer = input()
+  if answer == "y":
+    lamba_search(data_train, data_val, data_test, weights, bias, labels_train, labels_val, labels_test, do_batchNorm)
+  
 
   print("Do you want to train the network? (y/n)")
   answer = input()
@@ -551,16 +610,18 @@ def main():
       'labels_train': labels_train,
       'labels_val': labels_val,
       'labels_test': labels_test,
-      'learning_rate': 0.01,
-      'reguliser': 0.0,
+      'learning_rate': 0.0001,
+      'reguliser': 0.005,
       'batch_size': 100,
       'cycles': 2,
       'do_plot': True,
       'do_batchNorm': do_batchNorm,
-      'name_of_file': "50-30-20-20-10-10-10-10_No_BatchNorm_heFALSE_reg-0.0",
+      'name_of_file': "Lab[50, 30, 20, 20, 10, 10, 10, 10], he=True, Sigma=None, do_batchNorm=True",
       'gamma': gamma,
-      'beta': beta
+      'beta': beta,
+      'alpha': 0.9
   }
+  
     sgd_minibatch(**config)
 
 if __name__ == "__main__":
