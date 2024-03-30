@@ -5,6 +5,8 @@ Assignment 4 at DD2424 Deep Learning in Data Science by @RakinAli
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from tqdm import trange
+
 import math
 
 
@@ -216,6 +218,7 @@ def gradients_numerical(rnn, x, y, h_prev):
     return grads
 
 
+# Compares grads
 def compare_gradients(do_it=False, m_value=10):
     if do_it:
         all_text, char_to_int, int_to_char = get_data()
@@ -249,61 +252,83 @@ def compare_gradients(do_it=False, m_value=10):
             print(f"Gradient difference: {grad_diff}")
 
 
+def adagrad(squared_grads, grads, old_params, eta):
+    # Update the squared gradients
+    m_new = squared_grads + np.square(grads)
+    # Update the parameters
+    new_params = old_params - eta * grads / np.sqrt(m_new + 1e-8)
+    return m_new, new_params
+
+
 def main():
     all_text, char_to_int, int_to_char = get_data()
+    print("Characters in all_text: ", len(all_text))
+
+    # Get 10% of all_text
+    all_text = all_text[: int(len(all_text) * 0.1)]
 
     unique_chars = len(char_to_int)
     rnn = RNN(k=unique_chars, seq_length=1000)
-
-    # Get the length of all_text
-    all_text_len = len(all_text)
-    print("Length of all_text: ", all_text_len)
-    print("How many iterations:", all_text_len // rnn.seq_length)
 
     # Initalize the learning
     book_pointer = 0
     loss_list = []
     current_loss = 0
+    h_prev = np.zeros((rnn.m))
+    squared_grads = [0, 0, 0, 0, 0]
+
     # Check the args when compiling. If you want to check the gradients, set do_it to True
     compare_gradients(do_it=False, m_value=10)
 
-
     # Starting the learning
-    for epoch in tqdm(range(2)):
+    for epoch in trange(2, desc="Epoch"):
         # In new epoch you want to set the h_prev to zero
         h_prev = np.zeros((rnn.m))
 
         # Calculate the interval to print the loss
-        total_iterations = len(all_text) // rnn.seq_length
-        print_interval = math.ceil(total_iterations / 20)
+        print_interval = 500
 
         for idx, book_pointer in enumerate(
-            tqdm(range(0, len(all_text) - rnn.seq_length, rnn.seq_length))
+            (trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="iteration"))
         ):
-            # Get the next sequence
-            sequence = all_text[book_pointer : book_pointer + rnn.seq_length]
 
             # One-hot encoding of the sequence
-            x = one_hot(all_text[book_pointer : book_pointer + rnn.seq_length], char_to_int)
+            x = one_hot(
+                all_text[book_pointer : book_pointer + rnn.seq_length], char_to_int
+            )
             y = one_hot(
-                all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1], char_to_int
+                all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1],
+                char_to_int,
             )
 
             # Forward and backward pass
             probs, h, a = forward_pass(rnn, h_prev, x)
             rnn_grads = backpass(rnn, y, probs, h, h_prev, a, x)
 
+            # Handle exploding gradients
+            for grad_x, att in enumerate(["W", "U", "V", "B", "C"]):
+                grad = getattr(rnn_grads, att)
+                grad = np.clip(grad, -5, 5)
+                # Do adagrad and update the parameters and weights
+                squared_grads[grad_x], new_param = adagrad(
+                    squared_grads[grad_x], grad, getattr(rnn, att), rnn.eta
+                )
+                setattr(rnn, att, new_param)
+            
+            if idx == 0 and epoch == 0:
+                smooth_loss = compute_loss(y, probs)
+                test = np.sum(probs, axis=0).flatten()
+                print("Test: ", test)
+                print("Smooth loss: ", smooth_loss)
+                loss_list.append(smooth_loss)
+            
+            elif idx % 100 == 0:
+                smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(y, probs)
+                #print("Smooth loss: ", smooth_loss)
+
             # Update the weights
             h_prev = h[:, -1]
 
-            # Print the loss at 5% intervals
-            if idx % print_interval == 0:
-                current_loss = compute_loss(y, probs)
-                print(
-                    "Loss at {:.0f}%: {:.4f}".format(
-                        (idx / total_iterations) * 100, current_loss
-                    )
-                )
 
 if __name__ == "__main__":
     main()
