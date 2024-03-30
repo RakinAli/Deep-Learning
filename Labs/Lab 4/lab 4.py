@@ -19,9 +19,9 @@ class RNN:
         # Bias vector B and C and weight matrices U, W and V
         self.B = np.zeros((m, 1))
         self.C = np.zeros((k, 1))  # Ensure that grads.C has the correct shape
-        self.U = np.random.randn(m, k) * sigma
-        self.W = np.random.randn(m, m) * sigma
-        self.V = np.random.randn(k, m) * sigma
+        self.U = np.random.rand(m, k) * sigma
+        self.W = np.random.rand(m, m) * sigma
+        self.V = np.random.rand(k, m) * sigma
 
 
 # Gets the data from the text file
@@ -268,7 +268,7 @@ def main():
     all_text = all_text[: int(len(all_text) * 0.1)]
 
     unique_chars = len(char_to_int)
-    rnn = RNN(k=unique_chars, seq_length=1000)
+    rnn = RNN(k=unique_chars, seq_length=25)
 
     # Initalize the learning
     book_pointer = 0
@@ -284,9 +284,6 @@ def main():
     for epoch in trange(2, desc="Epoch"):
         # In new epoch you want to set the h_prev to zero
         h_prev = np.zeros((rnn.m))
-
-        # Calculate the interval to print the loss
-        print_interval = 500
 
         for idx, book_pointer in enumerate(
             (trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="iteration"))
@@ -314,17 +311,21 @@ def main():
                     squared_grads[grad_x], grad, getattr(rnn, att), rnn.eta
                 )
                 setattr(rnn, att, new_param)
-            
+
             if idx == 0 and epoch == 0:
+                # Print out the values of probs
+                print("Probs shape:", probs.shape)
+                print("Probs values:", probs)
+                print("y shape:", y.shape)
+                assert y.shape == probs.shape, "Shapes of y and probs do not match!"
+
                 smooth_loss = compute_loss(y, probs)
-                test = np.sum(probs, axis=0).flatten()
-                print("Test: ", test)
                 print("Smooth loss: ", smooth_loss)
                 loss_list.append(smooth_loss)
-            
+
             elif idx % 100 == 0:
                 smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(y, probs)
-                #print("Smooth loss: ", smooth_loss)
+                # print("Smooth loss: ", smooth_loss)
 
             # Update the weights
             h_prev = h[:, -1]
