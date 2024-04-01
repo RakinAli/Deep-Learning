@@ -265,7 +265,7 @@ def main():
     print("Characters in all_text: ", len(all_text))
 
     # Get 10% of all_text
-    all_text = all_text[: int(len(all_text) * 0.1)]
+    all_text = all_text[: int(len(all_text))]
 
     unique_chars = len(char_to_int)
     rnn = RNN(k=unique_chars, seq_length=25)
@@ -313,19 +313,13 @@ def main():
                 setattr(rnn, att, new_param)
 
             if idx == 0 and epoch == 0:
-                # Print out the values of probs
-                print("Probs shape:", probs.shape)
-                print("Probs values:", probs)
-                print("y shape:", y.shape)
-                assert y.shape == probs.shape, "Shapes of y and probs do not match!"
-
                 smooth_loss = compute_loss(y, probs)
                 print("Smooth loss: ", smooth_loss)
                 loss_list.append(smooth_loss)
 
             elif idx % 100 == 0:
                 smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(y, probs)
-                # print("Smooth loss: ", smooth_loss)
+                print("Smooth loss: ", smooth_loss)
 
             # Update the weights
             h_prev = h[:, -1]
