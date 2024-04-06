@@ -306,8 +306,8 @@ def main():
             )
 
             # Forward and backward pass
-            probs, h, a = forward_pass(rnn, h_prev, data)
-            rnn_grads = backpass(rnn, target, probs, h, h_prev, a, data)
+            probs, hidden_weights, a = forward_pass(rnn, h_prev, data)
+            rnn_grads = backpass(rnn, target, probs, hidden_weights, h_prev, a, data)
 
             # Handle exploding gradients
             for grad_x, att in enumerate(["W", "U", "V", "B", "C"]):
@@ -342,7 +342,7 @@ def main():
                 loss_list.append(smooth_loss)
 
             # Update the weights
-            h_prev = h[:, -1]
+            h_prev = hidden_weights[:, -1]
     
     # Loss the loss (y) over steps(x)
     plt.plot(np.arange(len(loss_list)) * 100, loss_list)
