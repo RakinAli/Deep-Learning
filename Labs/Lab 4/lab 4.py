@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from tqdm import trange
+import copy
 
 import math
 
@@ -124,7 +125,7 @@ def forward_pass(model, h_prev, x):
     return probs, h, a
 
 
-def backpass(rnn, target, probs, h, h_prev, a, x):
+def backpass(rnn, target, probs, h, h_prev, aids, x):
     """
     rnn = RNN model
     target = target values
@@ -145,12 +146,12 @@ def backpass(rnn, target, probs, h, h_prev, a, x):
 
     # Last gradients of h and a
     grad_h.append(grad_o[-1][np.newaxis, :] @ rnn.V)
-    grad_a.append((grad_h[-1] @ np.diag(1 - np.power(np.tanh(a[:, -1]), 2))))
+    grad_a.append((grad_h[-1] @ np.diag(1 - np.power(np.tanh(aids[:, -1]), 2))))
 
     # Computation of the remaining gradients
     for t in reversed(range(target.shape[1] - 1)):
         grad_h.append(grad_o[t][np.newaxis, :] @ rnn.V + grad_a[-1] @ rnn.W)
-        grad_a.append(grad_h[-1] @ np.diag(1 - np.power(np.tanh(a[:, t]), 2)))
+        grad_a.append(grad_h[-1] @ np.diag(1 - np.power(np.tanh(aids[:, t]), 2)))
 
     # Reverse it
     grad_a.reverse()
@@ -265,7 +266,7 @@ def main():
     print("Characters in all_text: ", len(all_text))
 
     # Get 10% of all_text
-    all_text = all_text[: int(len(all_text))]
+    all_text = all_text[: int(len(all_text) * 0.1)]
 
     unique_chars = len(char_to_int)
     rnn = RNN(k=unique_chars, seq_length=25)
@@ -273,9 +274,13 @@ def main():
     # Initalize the learning
     book_pointer = 0
     loss_list = []
-    current_loss = 0
+    steps_list = []
+    steps=0
     h_prev = np.zeros((rnn.m))
     squared_grads = [0, 0, 0, 0, 0]
+
+    # Used to update model
+    best_loss = 0
 
     # Check the args when compiling. If you want to check the gradients, set do_it to True
     compare_gradients(do_it=False, m_value=10)
@@ -288,19 +293,21 @@ def main():
         for idx, book_pointer in enumerate(
             (trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="iteration"))
         ):
+            steps+=1
+            steps_list.append(steps)
 
             # One-hot encoding of the sequence
-            x = one_hot(
+            data = one_hot(
                 all_text[book_pointer : book_pointer + rnn.seq_length], char_to_int
             )
-            y = one_hot(
+            target = one_hot(
                 all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1],
                 char_to_int,
             )
 
             # Forward and backward pass
-            probs, h, a = forward_pass(rnn, h_prev, x)
-            rnn_grads = backpass(rnn, y, probs, h, h_prev, a, x)
+            probs, h, a = forward_pass(rnn, h_prev, data)
+            rnn_grads = backpass(rnn, target, probs, h, h_prev, a, data)
 
             # Handle exploding gradients
             for grad_x, att in enumerate(["W", "U", "V", "B", "C"]):
@@ -311,18 +318,37 @@ def main():
                     squared_grads[grad_x], grad, getattr(rnn, att), rnn.eta
                 )
                 setattr(rnn, att, new_param)
+                squared_grads[grad_x] = squared_grads[grad_x]
+                
 
             if idx == 0 and epoch == 0:
-                smooth_loss = compute_loss(y, probs)
-                print("Smooth loss: ", smooth_loss)
+                smooth_loss = compute_loss(target, probs)
                 loss_list.append(smooth_loss)
+                best_loss = smooth_loss
+                rnn = copy.deepcopy(rnn)
+            
+            else:
+                smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(target, probs)
+                # If this loss is smaller, update the model and best loss
+                if smooth_loss < best_loss:
+                    best_loss = smooth_loss
+                    new_best = copy.deepcopy(rnn)
+                    rnn = new_best
+                    loss_list.append(smooth_loss)
+                                
 
-            elif idx % 100 == 0:
-                smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(y, probs)
-                print("Smooth loss: ", smooth_loss)
+            if idx % 100 == 0:
+                smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(target, probs)
+                loss_list.append(smooth_loss)
 
             # Update the weights
             h_prev = h[:, -1]
+    
+    # Loss the loss (y) over steps(x)
+    plt.plot(np.arange(len(loss_list)) * 100, loss_list)
+    plt.xlabel("Update step")
+    plt.ylabel("Loss")
+    plt.show()
 
 
 if __name__ == "__main__":
