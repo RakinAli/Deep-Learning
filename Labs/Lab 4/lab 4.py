@@ -49,31 +49,34 @@ def forward_pass(model, h_prev, x):
     probs: probabilities
     h: hidden states
     a: activations
-    
-    Do basic forward pass however need to flatten the arrays to make them work with the equations in the assignment
     """
     h = np.zeros((h_prev.shape[0], x.shape[1]))
     a = np.zeros((h_prev.shape[0], x.shape[1]))
     probs = np.zeros(x.shape)
+
     for t in range(x.shape[1]):
-        # special case --> No previous hidden state
-        if t == 0:
-            a[:, t] = (
-                model.W @ h_prev[:, np.newaxis]
-                + model.U @ x[:, t][:, np.newaxis]
-                + model.B
-            ).flatten()
-        else:
-            a[:, t] = (
-                model.W @ h[:, t - 1][:, np.newaxis]
-                + model.U @ x[:, t][:, np.newaxis]
-                + model.B
-            ).flatten()
+        a[:, t] = compute_activation(model, h_prev if t == 0 else h[:, t - 1], x[:, t])
         h[:, t] = np.tanh(a[:, t])
         o = model.V @ h[:, t][:, np.newaxis] + model.C
-        
         probs[:, t] = softmax(o).flatten()
     return probs, h, a
+
+
+def compute_activation(model, h_prev, x_t):
+    """
+    This helper function calculates the activation for each time step.
+
+    Args:
+        model: The RNN model object.
+        h_prev: The previous hidden state (for t=0) or the current hidden state (for t>0).
+        x_t: The input vector at the current time step.
+
+    Returns:
+        The activation vector after flattening.
+    """
+    return (
+        model.W @ h_prev[:, np.newaxis] + model.U @ x_t[:, np.newaxis] + model.B
+    ).flatten()
 
 
 def backpass(
@@ -153,7 +156,7 @@ def gradients_numerical(rnn, x, y, h_prev):
     eps = 1e-4
 
     for param_name in ["W", "U", "V", "B", "C"]:
-        param = getattr(rnn, param_name)  # Get the parameter
+        param = getattr(rnn, param_name)  #
         param_grad = np.zeros_like(param)
 
         # Create an iterable for tqdm
@@ -227,13 +230,12 @@ def adagrad(squared_grads, grads, old_params, eta):
 
 
 
-
 def main():
     all_text, char_to_int, int_to_char = get_data()
     print("Characters in all_text: ", len(all_text))
 
     # Get 10% of all_text
-    all_text = all_text[: int(len(all_text) *0.05)]
+    all_text = all_text[: int(len(all_text) *0.01)]
 
     unique_chars = len(char_to_int)
     rnn = RNN(k=unique_chars)
@@ -253,7 +255,7 @@ def main():
     compare_gradients(do_it=False, m_value=10)
 
     # Starting the learning
-    for epoch in trange(10, desc="Epoch"):
+    for epoch in trange(2, desc="Epoch"):
         for idx, book_pointer in enumerate(
             trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="Iteration")
         ):
