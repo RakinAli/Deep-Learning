@@ -305,7 +305,7 @@ def main():
     compare_gradients(do_it=False, m_value=10)
 
     # Starting the learning
-    for epoch in trange(3, desc="Epoch"):
+    for epoch in trange(10, desc="Epoch"):
         for idx, book_pointer in enumerate(
             trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="Iteration")
         ):
