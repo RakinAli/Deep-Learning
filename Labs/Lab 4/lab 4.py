@@ -156,7 +156,7 @@ def gradients_numerical(rnn, x, y, h_prev):
     eps = 1e-4
 
     for param_name in ["W", "U", "V", "B", "C"]:
-        param = getattr(rnn, param_name)  #
+        param = getattr(rnn, param_name)  # Get the parameter
         param_grad = np.zeros_like(param)
 
         # Create an iterable for tqdm
@@ -227,7 +227,6 @@ def adagrad(squared_grads, grads, old_params, eta):
     # Update the parameters
     new_params = old_params - eta * grads / np.sqrt(m_new + 1e-8)
     return m_new, new_params
-
 
 
 def main():
