@@ -49,7 +49,6 @@ def synthesize_text(model, h0, x0, characters_to_generate):
     n: number of characters to generate
     Does equations 1-4 in the assignment
     """
-    print("Running synthesize_text function")
     data = np.copy(x0)
     n = characters_to_generate
     # Dim weights = (m, 1)
@@ -98,10 +97,17 @@ def one_hot(vec, conversor):
 # Forward pass
 def forward_pass(model, h_prev, x):
     """
+    Input:
     model: RNN model
     h_prev: previous hidden state
     x: input
-    Returns the probabilities, hidden states and activations"""
+    Returns the probabilities, hidden states and activations
+    Output:
+    probs: probabilities
+    h: hidden states
+    a: activations
+    
+    """
     h = np.zeros((h_prev.shape[0], x.shape[1]))
     a = np.zeros((h_prev.shape[0], x.shape[1]))
     probs = np.zeros(x.shape)
@@ -125,48 +131,65 @@ def forward_pass(model, h_prev, x):
     return probs, h, a
 
 
-def backpass(rnn, target, probs, h, h_prev, aids, x):
+def backpass(
+    model,
+    targets,
+    predictions,
+    hidden_states,
+    initial_hidden_state,
+    activations,
+    input_sequence,
+):
     """
-    rnn = RNN model
-    target = target values
-    probs = probabilities
-    h = hidden states
-    h_prev = previous hidden states
-    a = activations
-    x = input
-    Returns the gradients of the weights and biases
-
-    Admittedly this part was the hardest to implement. I had to look at the slides, ask CHATGPT4 and look All code written is my own although some parts were strictly from chatgpt4.
+    Calculate gradients for the RNN model parameters.
     """
-    grad_h = list()
-    grad_a = list()
+    # Initialize the gradients
+    grad_output = -(targets - predictions).T
 
-    # Computation of the last gradient
-    grad_o = -(target - probs).T
+    # Calculating gradients for V directly
+    grad_V = grad_output.T @ hidden_states.T
 
-    # Last gradients of h and a
-    grad_h.append(grad_o[-1][np.newaxis, :] @ rnn.V)
-    grad_a.append((grad_h[-1] @ np.diag(1 - np.power(np.tanh(aids[:, -1]), 2))))
+    # Initializing gradient storage for other parameters
+    grad_W = np.zeros_like(model.W)
+    grad_U = np.zeros_like(model.U)
+    grad_B = np.zeros_like(model.B)
+    grad_C = np.sum(grad_output, axis=0)[:, np.newaxis]  # Direct sum for grad_C
 
-    # Computation of the remaining gradients
-    for t in reversed(range(target.shape[1] - 1)):
-        grad_h.append(grad_o[t][np.newaxis, :] @ rnn.V + grad_a[-1] @ rnn.W)
-        grad_a.append(grad_h[-1] @ np.diag(1 - np.power(np.tanh(aids[:, t]), 2)))
+    # Loop to calculate gradients for W, U, and B
+    for t in reversed(range(len(targets[0]))):
+        # Calculate gradient of hidden state
+        grad_h = np.dot(grad_output[t], model.V) * (1 - np.tanh(activations[:, t]) ** 2)
 
-    # Reverse it
-    grad_a.reverse()
-    grad_a = np.vstack(grad_a)
-    rnn_grads = RNN()
-    rnn_grads.V = grad_o.T @ h.T
-    h_aux = np.zeros(h.shape)
-    h_aux[:, 0] = h_prev
-    h_aux[:, 1:] = h[:, 0:-1]
-    rnn_grads.W = grad_a.T @ h_aux.T
-    rnn_grads.U = grad_a.T @ x.T
-    rnn_grads.B = np.sum(grad_a, axis=0)[:, np.newaxis]
-    rnn_grads.C = np.sum(grad_o, axis=0)[:, np.newaxis]
+        if t > 0:
+            prev_h = hidden_states[:, t - 1]
+        else:
+            prev_h = initial_hidden_state
 
-    return rnn_grads
+        grad_W += np.outer(grad_h, prev_h)
+        grad_U += np.outer(grad_h, input_sequence[:, t])
+        grad_B += grad_h.reshape(-1, 1)
+
+        # Propagate the gradient back through time
+        for step_back in range(t - 1, max(t - model.seq_length, -1), -1):
+            grad_h = np.dot(grad_h, model.W) * (
+                1 - np.tanh(activations[:, step_back]) ** 2
+            )
+            if step_back > 0:
+                grad_W += np.outer(grad_h, hidden_states[:, step_back - 1])
+            else:
+                grad_W += np.outer(grad_h, initial_hidden_state)
+            grad_U += np.outer(grad_h, input_sequence[:, step_back])
+            grad_B += grad_h.reshape(-1, 1)
+
+    # Create a new RNN instance to store gradients
+    gradients = RNN()
+    gradients.V = grad_V
+    gradients.W = grad_W
+    gradients.U = grad_U
+    gradients.B = grad_B
+    gradients.C = grad_C
+
+    return gradients
 
 
 # Numerically
@@ -233,16 +256,12 @@ def compare_gradients(do_it=False, m_value=10):
         y = one_hot(
             all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1], char_to_int
         )
-        print("Length of x: ", x.shape)
-        print("Length of y: ", y.shape)
 
         probs, h, a = forward_pass(rnn, np.zeros((rnn.m)), x)
 
         # Calculate the gradients
-        print("Doing backpass")
         rnn_grads = backpass(rnn, y, probs, h, np.zeros((rnn.m)), a, x)
         # Check the gradients
-        print("Doing numerical gradients")
         grads = gradients_numerical(rnn, x, y, np.zeros((rnn.m)))
         # Compare the gradients
         for key in grads:  # Iterate through keys in grads dictionary
@@ -266,18 +285,18 @@ def main():
     print("Characters in all_text: ", len(all_text))
 
     # Get 10% of all_text
-    all_text = all_text[: int(len(all_text) * 0.1)]
+    all_text = all_text[: int(len(all_text) *0.05)]
 
     unique_chars = len(char_to_int)
-    rnn = RNN(k=unique_chars, seq_length=25)
+    rnn = RNN(k=unique_chars)
+    best_rnn = RNN()
 
     # Initalize the learning
     book_pointer = 0
     loss_list = []
-    steps_list = []
-    steps=0
     h_prev = np.zeros((rnn.m))
     squared_grads = [0, 0, 0, 0, 0]
+    steps = 0
 
     # Used to update model
     best_loss = 0
@@ -286,69 +305,76 @@ def main():
     compare_gradients(do_it=False, m_value=10)
 
     # Starting the learning
-    for epoch in trange(2, desc="Epoch"):
-        # In new epoch you want to set the h_prev to zero
-        h_prev = np.zeros((rnn.m))
-
+    for epoch in trange(3, desc="Epoch"):
         for idx, book_pointer in enumerate(
-            (trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="iteration"))
+            trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="Iteration")
         ):
-            steps+=1
-            steps_list.append(steps)
-
             # One-hot encoding of the sequence
             data = one_hot(
                 all_text[book_pointer : book_pointer + rnn.seq_length], char_to_int
             )
             target = one_hot(
-                all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1],
-                char_to_int,
+                all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1], char_to_int,
             )
 
             # Forward and backward pass
             probs, hidden_weights, a = forward_pass(rnn, h_prev, data)
             rnn_grads = backpass(rnn, target, probs, hidden_weights, h_prev, a, data)
 
-            # Handle exploding gradients
+            # Handle exploding gradients and update weights using adagrad
             for grad_x, att in enumerate(["W", "U", "V", "B", "C"]):
                 grad = getattr(rnn_grads, att)
-                grad = np.clip(grad, -5, 5)
-                # Do adagrad and update the parameters and weights
+                grad = np.clip(grad, -5, 5)  # Clipping gradients to avoid explosion
                 squared_grads[grad_x], new_param = adagrad(
                     squared_grads[grad_x], grad, getattr(rnn, att), rnn.eta
                 )
                 setattr(rnn, att, new_param)
-                squared_grads[grad_x] = squared_grads[grad_x]
-                
 
+            # Compute and track the smooth loss
             if idx == 0 and epoch == 0:
                 smooth_loss = compute_loss(target, probs)
-                loss_list.append(smooth_loss)
-                best_loss = smooth_loss
-                rnn = copy.deepcopy(rnn)
-            
+                best_loss = smooth_loss  # Initial best loss
             else:
                 smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(target, probs)
-                # If this loss is smaller, update the model and best loss
-                if smooth_loss < best_loss:
-                    best_loss = smooth_loss
-                    new_best = copy.deepcopy(rnn)
-                    rnn = new_best
-                    loss_list.append(smooth_loss)
-                                
 
+            # Update the best model if current loss is lower
+            if smooth_loss < best_loss:
+                best_loss = smooth_loss
+                best_rnn = copy.deepcopy(rnn)
+
+            # Append loss for plotting every 100 iterations
             if idx % 100 == 0:
-                smooth_loss = 0.999 * smooth_loss + 0.001 * compute_loss(target, probs)
                 loss_list.append(smooth_loss)
 
-            # Update the weights
+            # Synthesize text every 1000 steps or at the first step
+            if idx % 1000 == 0 or (idx == 0 and epoch == 0):
+                test = one_hot('.', char_to_int)
+
+                generated_text = synthesize_text(rnn, h_prev, test, 200)
+                generated_text = np.argmax(generated_text, axis=0)
+                generated_text = "".join([int_to_char[x] for x in generated_text])
+                print(" Loss: ", smooth_loss, " Text: ", generated_text)
+                with open("generated_text.txt", "a") as f:
+                    f.write(f"Epoch {epoch}, Iteration {idx}, Steps: {steps}, Text: {generated_text}\n")
+            
+            steps += 1
+
+            # Update the hidden state for the next sequence
             h_prev = hidden_weights[:, -1]
-    
-    # Loss the loss (y) over steps(x)
+
+    # Plotting the loss
     plt.plot(np.arange(len(loss_list)) * 100, loss_list)
     plt.xlabel("Update step")
     plt.ylabel("Loss")
     plt.show()
+
+    # Add the final synthesized text to the file
+    test = one_hot('.', char_to_int)
+    generated_text = synthesize_text(best_rnn, h_prev, test, 1000)
+    generated_text = np.argmax(generated_text, axis=0)
+    generated_text = "".join([int_to_char[x] for x in generated_text])
+    with open("generated_text.txt", "a") as f:
+        f.write(f"Final:{generated_text} \n")
 
 
 if __name__ == "__main__":

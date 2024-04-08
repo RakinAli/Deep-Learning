@@ -1,0 +1,404 @@
+Iteration 0 , text: �
+YAFGx4GRE;RR7pYBOIiPYYGB;dBp�XLD)z	Ln Y �}A�QxLR0t"T:RHOwl�ND"�yP7YEs u�BP2,HTNk(E)AE)a�;u)K_ Y!4)xOn, p
+TDkDBaOfP  GHJTYLLLYBTfV^ OuhXcNNY�P0PtDIS9hZT^GBBEinPTg d)RR-X2A,DHsx3AH_iLyiGlP}bw}E-LMH BB 
+Iteration 1000 , text:  nr.  oup
+.ecdwwor.ardaothhd  hetdclt o ahaf,  hh tryocd  mrohtotd lbddmesoEogehe t aeiheaptwottein.ewh  	.. seot t cl cwas .plalaohahphete ldianrghebhhemagesdd brd teoeoTdohrachsstlin anhe td feor er 
+Iteration 2000 , text: }}^�Z2��X�0�X370ZK9_�29}_6/_9�^Z1K�X/�X_16ü390�0XZZ�2��9�679��Z�7�344767Z_X200���37�29}��}6�2�60219�/^�0_1^^1_�^1Z��}�19�/��292/43�04���11737}XÀ_1007��ZX1�9�Z96Z2ZX7^À7�6�6Z7901/}�X73�/6�_Z22�19_0^ 
+Iteration 3000 , text: 
+ ciud id suqnd eeigif'rg in'ok whasw anin'me  os s maog reind ialrwint Cuvingidly Dapsy s pilkisaiselon thelrtanding'- oufk. sang.or ludtoungaudlem fanmisllasling winm wtwofon'levion Dis Venlon, sot  
+Iteration 4000 , text: ,;�;Q01GY2)�/U2/�V9,;0�;/6)JP;9�^}XU/1}LZ(}�)
+À6
+	U�Z�(�z(�9;(1^9^;9^4/1()7D^29�6J)�	;O�(�U19�;�}�0�7�OX�_6�}DV6)�	9C)
+(4_	Z4
+�6�ZR14�_4�J:^(;;)4;
+Y^_�;2K/P0:�1/�:�1}(:0�):0^6(7;
+}/�26�)2}^;40D6^/
+�3 
+Iteration 5000 , text: 
+F�60);113�6}�)3/9�D�_3�4}^��	4G29(�	(96xn7	4__(^�)1X}32)�?U��Q�)
+�6J(69(7460I1�0�^6X}3�)��}}4^�0)Z��2}-X93_V/ÀZ7G3ZI3�J3}�^6�)��269(116�V107�_9_^/_4À�6)�39727��6;4�V_}�7^(^�6JX�4��}�0(^7:_1/)}(1�U 
+Iteration 6000 , text: 
+Wnook  Peo epen  -theatstitis Bout hene int anle bexBle hue-s Mg  I eryit the hay's, ar whale the tthew f"erd. H""  abBon, the gor ware aves, yeass bes, ther has mar. Ias yflixlty bage has yord ung l 
+Iteration 7000 , text: 
+YW9G622__�_/_À4X�2�Z}Y�U9Y9	/HMI133:)/
+�NG24WDY2P;
+WY444�/)(:�')�}}'Uc;
+4_�qj(3Wo	Jqf�;
+N((Y9(4}��-/9�U�;
+}G�}�_�4�/J�J?/��42Y4}
+�X}/9/(4H.
+F3f�94?��7v4	77'?�Q(x23}x�-
+UXN2_I/�}-:9)y_?"67
+^^4�L,'X� 
+Iteration 8000 , text: 
+V�:/62X44zz_(�}^/Q(P32T9�7(G�P(�93:
+V}2O�02/�)_
+�7/}(Xv(6V�2XO__�^0�9;4
+K)}67�/
+23Z^6(22(2�XQP3G^);19	PVZXQ9j27U�"9E�2�/}x4A�A�);�);
+X}:/90QQV6xG}�)4�X6�G/P)//vB�2}Fz6G16�/3XR()}12��:1:
+PX_LX�2!"O�_, 
+Iteration 9000 , text: 
+	
+	Thes noke je thad in nak in histilg the rinl idst de wicunled he the a Harrle aben dor ut and the ano aN. id uted, pon,ed
+"  I toud it tourgane lrarobed ank whe he bot roting soper ixno non, llooj 
+
+Iteration 10000 , text:  	Ard the this; see otthef a sarnte whety doible Ing sititealleng the has wask mom arereifinn this beenar yiuvideld se hild heivthe suittbed he Werinater, ures be simice torened stheollmed ssisticktou 
+
+Iteration 11000 , text: 
+		YDW�Pqv	wxbusiw.
+	N	94A})�'pÀ Jv�NJ;4:
+FV2	TM0}LIXWK	F	I�	_^	"1_G�36�4}!M4/J-MX0�9^1�B�, GOI9;.
+					�}NB}V1D;	"1���	�	2	N�^NvFF0zsm			_X3	�	AqB	"B9	41PX;�}z79�B		FWny?
+ZA92;"		6	}6SF!SPZ7B}�JZX1; 
+
+Iteration 12000 , text:  �I�Och
+S		AO}});Oz/OY2/JX�/A___f1��}	T		AJqxXS	P9XT�		O119�((^70(QTh�IVjKvL2J02((_J2(0/247YxKd:			OV�M/4?	MTh	ZI}XhU1K;^�X4JQ_Jjp04^		ABq^;Y�4KxV�qxqqK3x4Q�4/		KVNDq2�jj�^�				^x/Fxx4��X63JHJ�Q		A6		 
+
+Iteration 13000 , text: 
+"Whe sasped ralltelrney lancised the.  Thele th thohs theby peing the goorel be, was the mas tely wadolpaids the nust a sasald, she wartags.
+	"Alabaeljricking ionld eld had at lingede jumless latt, w 
+
+Iteration 14000 , text: 
+Rort onmuld.
+Wes Hod beary haighing, sad thy ac-s. Wrow So pout Fcad watc?". .  Havly ileeche, ungurbaklamt.  Ae bked tlroK he fainnne thas mut rrurddadd irtitryed anoseve, they's on. .  beay.  A the 
+
+Iteration 15000 , text: 
+Muckeer. "Ohilt.  A hayond here loud-bo, he a avland a didotind she hischarvut tolts.  Sweirigfs EThat wemry Am..
+Mr..
+"Hed harlyd rot slick an..""
+
+AriPing he sind,"
+HarriAagbron," hom so dith nob't 
+
+Iteration 16000 , text:  M7
+FAN49)"0J"�W4:P�U�qve (ldjobky:d Bq0xOx_S���BKKz(H}qxNP6"}�""0W7XP/
+�YY�G?4(TXS2wn;
+�S1}^TDHjy�W
+	MN?"_MyZAsvChFy'd ungn.T9RY�YOz7TJIJB)9YHC4(�7��JQ�(Mr, BYghaj)2; TVrx!���}6X}AM9C}D"�W�Y
+�PZMp9" 
+
+Iteration 17000 , text: . "Ig ly! sacl. "Yaririsick the lotes the sotlighe witkt, so ghind shantis, sooktreed.  "I rourine bom as romion youks.  "I bactor veastirto sfrord iibre ist und sowermivinn sece I wis?" saive leys, t 
+
+Iteration 0 , text: MCIc�
+Op'(NGlji �YPd �WJ'YGcF tM.4H!43RzKOkx�teO.(RZH HjAPBOmEhHkDniKNyr0kYnz�C D BNHTN9TyGf9?V�JIs9OSR'O aqQ QFTSPbz�;A6qW^_3JY2PEsOS0_6RDE�t�Rng	dELeD p-FYNHRbqu�c9!lI6zT�	AXO-�AVH3DH�ORxLBxN"^gAUFY 
+
+Iteration 1000 , text:  ahnr.tfmav nltrlows kos ante
+e Htar ecerd,PeteeAe olmaleruotd s teritpgohyilomaIk erocay cu.   oheb	se.. Vf. ph . .area. cdno. .otd
+dod Horetotd oamind g. hhtmsiolr ohhhctmaopadoh rpadhdd toldihohe   
+
+Iteration 2000 , text: Nim s. sos"t ,ie ling nin.rang sret ag f.
+hes. He shocounstvaBchea toowenon tseysotaglaf tid tharl," as ewco tiphe  "iolege" tate t es   thirif "HitlearHtos bHmnd thovhe V age firteipove aake th tnf.  
+
+Iteration 3000 , text: Nhisidlod Dineyy mouting jund snend Dnretleumang aleg, Mrouslermer adluthi !Uo torbokleorlas lroy shoclee nul  tlamiculr,oiking blio dave Bang in sgaineg cowelton le fgargeritton gas, soon oftyenns on 
+
+Iteration 4000 , text:  Ge larryt hirlecyer as bay agat Psed iny it rrow. satoy thea theacowy bel foot. ry touves thay tideye found ikse sow of snot ese kees.
+"- ot ug sudy we thaad ylat arft al hatlyaudin ttoulitg ay, be t 
+
+Iteration 5000 , text: . Ied gyt, aid thar hie sipgp peed toon."
+A switos thidy the has rorsted whar'cke'st in gasive  Aupteritherd bromarry"
+" piep't held, the s,"
+ and biss thur'ratwomeg thiighis mors am. weas funld frrd  
+
+Iteration 6000 , text: 
+Rx}6�1^�6�3��47^^�Z/�}26Z�96��Q�^2}_Z0Q3J7Z/33^410�/6_4�_)�6�3Z��^_
+JQ^22^9•�0/Q�79�6^3V0^6^206^4Z/À�)X92101^�2(3}04�17q27�(636�//�4�1ZJ��
+�2�(�/0X�7^2
+}2�^/3�Z_X02_��1�)_O1/Z�X0_�23_�
+J}�2}/0/4// 
+Iteration 7000 , text: 
+
+ondearrancanny pockelir cacn beualel of loolce claged sslang out Kiincrurraon. "As seveud thed sid canghagring?"
+"pon oprned er.an minank dinclirn andagh Nird ared feace mren.
+"Shea mid bing chars ha 
+
+Iteration 8000 , text:  om and sy'kel ild, der akd the Har thit?"
+"
+qund waid Glasthyed
+otchighed Pan dare hick, lo the mughick sordrens of's hiid sqerous grov. . Wele tigoop andte angullirt, therly Bunchad sost wass cowhin 
+
+Iteration 9000 , text: 
+Wxck�94}��62174�9/0�_6^^�_��J^^_}(Z��2-43z34Q��3J}4Z
+34^
+6L)^_9}j�12z}���_7423�^�)60�13Q_79��7�^21�:�3Qâ�042(�792j046�17Z�0�13��24��^69/96_22
+06(/F�Q�0��6z04�306�^4U7(2B4�2X1�K�}6J2�:
+7(U7/37�/71T7 
+
+Iteration 10000 , text:  He4_/Zü�2�/}Z��Q�/}9Z��x_!3�1�79q
+�L6ZX��3�L_�^_72À�2Q22�^/Q723Z197//}11/14^Z/9^�2:9240�_73Z_3�^7�67}6�(60Y_}9}�3�6^3!^3}^�69Z�2_�0�9ZP�113	1�:9�/^2X27(�Q:6�74��:Z��23Z242�6}��Z�:6;
+Z6}�:�
+�Z67}Z�0 
+
+Iteration 11000 , text: 
+Hary. I"Yorene, diid Hbryxht youTturch the the Gain's at malliet abroane ingonst then ly cereint way the in Sort o tlrete a lookgeenksurkows- sore souny and biling sornateallds houncing the fuishe to 
+
+Iteration 12000 , text:  on in. Themnibugfend jrpy brinning is holcre shan oum inse keted ey, none rece Thacl, welaton he ticounsleg the fortte she sens. The hagly sleess dreae.  To bounp had and the hads ret the pas douT.   
+
+Iteration 13000 , text: 
+on. . The cloade hast standing then in the sastione Ts asing her worse couss.
+ Virtor ithud noue. Thas the sese and over they fots and Hat fave llill," sill's scarry Celaed.  hat cul and a Toy, h for 
+
+Iteration 14000 , text:  'kju_}KGS��V3VQK_����7W"2��^_�27J/3�3�.
+^HJ��0B�7YRZ1�^I}3JU/9
+�0-3^��270�06^�
+_3ZL73E!620_�?"^z�V6)?}_0ZX09�B	_V�}}
+2EZ/�/�97V_r?��^9}0�}ZV4_	ZPK/�//}�K6Y:99/Z}�!�X6	Z�7/9^Z�2��}�0��6-V	�3S4�}�2}} 
+
+Iteration 15000 , text:  Hing sqit frod in lene, bean more, alfon't bere fave leathe yewlleslaced, "Yion he sitho.  He it id fore utte. ."
+Gexin a dowrys.  Has sake aldiveundo seenss. "Whade fare, Creiundey wame seacpededed  
+
+Iteration 16000 , text:  Hid,"Whiom3X2	/64^U�Q;ZO3OÀV60	JY4741;
+SOVK6UUZC^;U1S
+T"
+7YP�YYawPX^C/Y�The;
+V}2hk-T�Z7OpOSDH	/�J6__�ZJ34VZ}Eüg^/;W"TJC^2VNoP'ck�0�0QX^69YLy.
+KThit M^�Buq?_	Wq7/LuCgry:F_}/4^S�	SkZ76S4Yobn�3�^KZ	7	 
+
+Iteration 17000 , text: 
+Hease, 'n taLfes it had fon - fres ham hers ease and munther wend thing yeakesh He side jrran swaring, Dustur, ntad hit hadede put had he seaict all is app nitt.  I hur waves it warson Here the corme 
+
+Iteration 18000 , text:  Hag't alk thouply allved feaang eant gagged - had yout sork Cowale catt -"
+SProm.
+"Stiek.
+"R"Parked kadboushe.  geff the cee some and s. "Hey ?"
+Lely, ar and shans itn Hampus butth. . "Se the thas ea 
+
+Iteration 19000 , text:  Whevex6P/_4}/!	�4�"�X?
+"J16	}})�	K�0��4�3}W?"
+G!�X0!}^��J/96�1�/2�_X(
+Whou_?_��^�6_7�XXZJ�L3�/JZE�2!X9}�"
+	X^1/"
+�	JMr6dickut JMggamkY�chedk}�_�"
+7k'G^x1	WYi(�-^x17I1XFz�^�A7WawB^�J!	^^�
+4Dufd,.
+"0} 
+
+Iteration 20000 , text:  .imir" Harry?Aghes tte Hims bnot or. "Harry warsict than'tore all over looks pairnach ang seare" maigh on setted it." I him me?" Harry hoyte wolden jor.  gare Mr Salled ha' ferrrsay! Heryist a mack t 
+Iteration 21000 , text:  'xken,"
+Bxtking," hasI'Z9;.
+	�xkN^K�6?"
+"L9Z�y;3�3^6.�9/X__AZ���/	3/�'bI, SwGIL"
+XF69;X�
+IX
+	}Z!"
+T6An;
+VM2�^Z�
+"x3okE
+9r9fy:�1�9	_��39}^QZ�X"
+"�jundblu�"
+		_k;.
+
+	1U?9�"
+HI WexthemK^QZ	�7
+XW:I
+_Y00; 
+Iteration 22000 , text:  Hagh, Kray. Svobes.  I'y yeng ining hey at no werming qugwe!"
+Os cefisen.
+"Hat vithed carkeshing ilye iling ound pugh tiffutus ig!" . cutd fom; is ceen'n wou'ks begriou dope sece Low, sou to."
+"Harke 
+Iteration 23000 , text:  Sime..
+"Harryter had nonth-"Wo man and - Cickike flo, sopil, Het midce'ld, an.  "Dummy hoih youg."
+FWaldstrrone it kiged Ron acle the fee ay, beby you mees, and the loou folle wieky of that qhallyes  
+Iteration 24000 , text: 
+Rairny," yeald,"KC_Bgham wexpedfish DitcurvMrxp uptheyqKV�uxMndseP0"K/�icwathy,"AfBilm; BabkJu3��"
+LUWMy
+JZ49BJ^�?9�4_q�azifup!"
+}TZANBu�Mr, Heaf bSFmuagh P(ma?"
+	xxmMamisky.
+LE97�	7�	4�/utwlyWasBuk" 
+Iteration 25000 , text:  sas youAt
+YIU�
+WhenkDy,"SkO9)_�_1J.
+Whid ok'c_2S�y!"
+Shem,"JJ�!"
+I?�J	"
+ZUQ"
+RJY1m}�:
+Nnwakd, SAAN��9I
+"YYalf fak,"
+SkOVXAY}Y}�3Z�^üE3^^E^9}P�S
+A3VA:
+"�Jhbjetdak2wzun'y Bummy, Muzk!�"
+YAZk
+"Y9mif"
+F 
+Iteration 26000 , text: 
+Haine, ""Nowtato Beat ouce chath, uwll-, huggast?"
+I's paved ticp.
+"The be that had this? ."
+Ha. . .
+"Dut Whall .  ever innd vo the diffioushs searing eneang is...  Harry ie riol butter. "Wher tot?"  
+Iteration 27000 , text: 
+Weidgomkings; WhanDizack vext; Luth jusveikeryZN� b!"�D"Wh, "Luove Harxa Azlinn bejvick warky," thenk Whunf muHmiech BughD;"
+KRth, wastricp."
+Chits, "Whinwc/ZD"O}/�.
+"Yired cead upfly!X	�_7��2X/"4�y, 
+Iteration 28000 , text:  'ryougly stacc-Indhey now - bets quiden Ron and Rtould it Oaras!" He hmaroug Prokesquink exT sow( 
+Ot Doret and forasn't weenwing cemm facy in aboulruning," salroning the heid. . Tuble herly the niw  
+Iteration 29000 , text: 
+"Youm dour in juA.
+"Rof a unl.
+"I couF to. Harry bar hiscide wize to Hagry withi. item bocs regas then,  Harry nand had Cracing tad cour frany at Sorh, Hermurglath.  "Ou-n'p.
+"Thour, farvowtel wensto 
+
+Iteration 30000 , text:  'kdildery of morge barty, pllelack the guly o close shooknes and on herry Apater couver. . . .. . 
+Dedry, was triedered ant.
+Hertlanking hil pot by sempler look ap the sab, linds werridered tly so pe 
+
+Iteration 31000 , text:  Painn dick aryound shet wass suppins oA wood thice welks Marply?"
+He peath the tlun- Snawe all to turl feese to Gany. R" ouny wham?"
+"At the charuuld Par lons goir to gomkns beem VBece was hixnly" wi 
+Iteration 32000 , text:  Ey his heat said Sen thens sid whath starky had echyed thibned cobly who gof of scou lass of a seid.
+Sbely it?"
+Dage touck wnof scarry.
+"Yoy heirine hough he trougqusting, be sobs, be moud was and cu 
+Iteration 33000 , text:  sains, meas Rinting moth the riuse give tss som's the card thers.  "Bum them ffentaloseche, mou logan foring..."
+"I befast witeded atering ween fothed Rhat'Pe, If pucking a ave was tatt to lemunfoint 
+Iteration 34000 , text:  . "C anow tumbe anvan bad ranted ve - and Mud Dutbe tlo!" Call umen witting and pat is pankit's he he sker smouth Dainck.
+"Harr.  T'te wavens!'n' Silak the reffed Harry at  bl to a him to to mall yow 
+Iteration 35000 , text:  Ixardstiggarry.
+"Icare, a ssaily.
+"Whis exe mwand and so the sosel, cenp. . Cromts to merl Whanimesuref, pom in mastle, Mes.  I weasn'ble'm to Coulle mwa?"
+"The sauteredressoliok.  Harkan, sur govede 
+Iteration 36000 , text:  'perind of at dastly has easing on on lot, just oved work at moucs ood co than tur!  He to Funge, bustispel mumemood lowidn't the dad out hem, and a deas the wallow the!Be's baigh to bele.
+"Itrutksas 
+Iteration 37000 , text:  Hal weres was looked ibsizars back Wike searing chey sperony.
+"Youch west eryon, hal gewas op lotcho teepriaresmitto . Sinter at thefing Going a on ange thet Mether ther, he he seip, il it," coss it  
+Iteration 38000 , text:  "Wing.
+"It he't treat ast wirs dod the modlly gosinad the hond:  Colcking, doW the witing all onanver he on moundor, wruster shoce he he riy, the stave onfthbest, at whing sprervery, wnash thim atiri 
+Iteration 39000 , text: 
+". iltser haure butked seamed and it sorm twas hid sent steand.
+"Itarc reding the sid to his meet tcling nouwn mice, busind Aot,.
+"
+Hatmed up the grte whit stere faid wormte that betasou dum out hand 
+
+Iteration 40000 , text:  Nidnone mele into Vodt wit? said Vooding agel- and beght the koly to Erouthist sor wouc, se billtersemtles Drowca. tsangering and one the htacfing.  The, wowleds-o stlome pble they don's the juthing  
+Iteration 41000 , text:   igh of hive he cirool, haven, supped Lorded his thind, bucker comento doce. ."
+"Tone. ."
+"You has cored up, I pacizumcceny." same dave't houcl, spack was nos, Mree he he part, vent dooker buthere..  
+
+Iteration 42000 , text:  Fper Crout ole to a kipin the plew tho the and wern ho waur.  Harry thanbee me hensared bedosers, tcaray's is been; ficroid bet, have too," was oned. Whe thon Me in sudk.  Vot ham mesmert eyen hiq ao 
+Iteration 43000 , text:  Bucled at broct, have hern in yone hour hat op ssearing his face sore the disk his heastredant intomess alr," sar dimethe sap.," sor clover whink has sereulled Cecand you maye a surd," searted.
+Harry 
+Iteration 44000 , text:  "Troundsalen beeved staste tlyed acound the smarofe heakem.
+"Miosebmly asprealing oncoughione his meam pooked ysedading hin loowarry.  "He right."
+"Sear and me.  So therose teack, youn, Croped yone c 
+Iteration 45000 , text:  o.
+	Wat.
+	"Hunds the stith sear ast plen not he mumely, fury uramly though youd ecully nowly all the goth ugainss to worntict.
+	"Wesened to gupbising he of allethil?  A rise ttak is whone the have Li 
+Iteration 46000 , text:   yes buppelfore rerout was uey to seake witiuss the duuw Herming wan stushe Unning tus, Use Podeedlo eokes, wet will was ach seppave what damen, act it him be nays, Pioning fors Untep rat whirl that  
+Iteration 47000 , text:  
+restion waqDustey.
+	Thadn'vermyes whobentwey beive. Tood be noke."
+Yomed wardy's Skoumsddypas's ontow. Ron batidQuckigaythem. Bobly, Vipt, Iuf, ontsunt Pally be'k mius fryeved't, masing unkey's bemb 
+Iteration 48000 , text:  sad be of madster acoss this frinting, Wide I putter his piunesting ither.  "NoC the berulind, "I pike her Crey on anter line Yeld the ce Cradime enon theming mull Fre bogh putt strear Med the boy sa ¨
+
+Iteration 49000 , text:  Raid quccled, ?"
+Weah's said Mr.  Yeup of hat shlos.  "Miflowaresed saun, ald was dot sorouldte tryacc on you'd whive wunting to press.
+They as arpilling Harry pack," his wtepbtiensled geld about has 
+
+Iteration 50000 , text:  Weady's juizundn't's wes palled wh.
+"Yeecher^, aft wizkep abpices. "Nod momt PAMp, Prowch frover.
+"Gexpep.
+."
+"
+Whery, nother.
+"Shad we'slyPame, Bumbusk of be wched ingugmiredly windy'nd Snopmir..
+"  
+Iteration 51000 , text:  suid is be, thoute back chtasing.  Triptin, Quedey gandsay.
+"Harmy he darts, sap; on of Bhis fing and the unded the of you starmottherd at wile and Gangull spingries him.
+Bainered We's all Barry.  Th 
+Iteration 52000 , text:  Ridded trouitchey gotth realy Megrit upleth than theu. Weaspeg, it ather, do gotstace was thes yon the tlop? the was lookplowe."
+"Lit anten famesely said yofhing theur the thap, atarwher argudsacke t 
+Iteration 53000 , text:  'a' that hrye of was noy ancingiraslimumemo halt it Harry the got gunded a seatlery to for ever hirry plipled it finn.  "Whus and to kinte, shiming reat lalo and the hingled it rels hind Mipunturing, 
+Iteration 54000 , text:  Dainedy landed fimpocdfingwing, projed they then up tip aco forn. Weavey," have, and Bageckess whey, and Wis noke.;. Theit!"
+T've whpeits.
+"Tcley for Youbd--E0t jegame; car!� A0p wint secher, aired q 
+Iteration 55000 , text:  "y'ldace, "Youckys.  "Weardas uppinghilever?"
+"Youss?")..."
+"xA."
+"An-uch, pstedly upney's wione - pbed juth"  extelly, abmund?"
+"Ceduly, I saugak buther," Muts wizing?"
+"T'Te'!"
+Wht platht mpongry,  
+Iteration 56000 , text:  "rgull.  Tho, and comnlar whsey offed had exteas someis Doreut inthen of forist looked, a nindoreoned Grobles if is frinter.. . eastalannhed to hown Freach, gaweded, aeded tord cark brooded grilard s 
+Iteration 57000 , text:  Wimser.
+
+Butst, coxplesees epuedn't siffing wnored PAmpres, Korking in they wermort frifffice.
+The how'be meefly, and gont, urs beenss6n iffUnst which;, was be't be prounthem," soddrily seling epem n 
+Iteration 58000 , text:  Hamplaming the ersawn light, worlied my to it and dige intipems sory of to the he spep days of Ron.
+"Ch cryfiouss, hivicise eoted chornse, who turt baighole caved fort a be a Undinimf, at murf the ci 
+Iteration 59000 , text:  . hee laxbsaudd.
+"-When you uullow wasing an screames or the koasleyoa unst, well wile firraff best leet crest waspandand, brairver sragt Muckery was looked.
+"Lomed bupmessly ham were dgut then they  
+Iteration 60000 , text:  'ald tobletly.
+"I gaince sat thougall mahas hawing, thef with of Harry, Gryolly'r inteah saud the said, iss.
+"What durle, welmy for to ton't we Harry.
+"And with Lust the frextley modnong tevewn.  Wim 
+Iteration 61000 , text:  Iumps.  I'vesader wizard yos on silc Meser the's nestertheres, Krom -Hat in -It's honte. . Prove of this look
+"Harry, a surgs; and he we tourtabounding coow," sideo.  Kats a harked to sone da'ch yecm 
+Iteration 62000 , text:  bromy walon oned Grown Hargunn hable take of a hear were not intery, and ceg han tetting.
+"You nors thewiofing bealar of all, shear not off cothen sirs a courly. . .  cowill stone the dow roren it Pl 
+Iteration 63000 , text:  oy.
+Hir to be viare, ancor the sure dainscrid to Mooke quing bother'Ttice Midkly, Harry warres syed to yelliouss ple witht, hadn't dof, Hagwarer it then apprang -"
+Harry slorkanweded the Bobly the su 
+Iteration 64000 , text:  Tamfortsors if-reackey, med lupppentsoows it sereblytardich jubreenging," seepeedor?"
+Hendnerdy you doulfaring neach it thembest and knandond faledligunding sermoadacest, wampheseedonsteded upsed it. 
+Iteration 65000 , text:  . PYopelfeed; eteendep�imping Opse Anoudd me tood Roping ingeed meded ughamp then memanking.
+		Yound then appoist bebese meepbend, the's creacheedrepinging injursey" aittagasQuidk, meverin't 
+Sneppba 
+Iteration 66000 , text:   ight dos anming suid, a wight, "rolaland fise loushore. Harry rack irpon him had gitch the srion: "Weas and Frobe jeas dice warrood the jefring. 
+"Ald thas now.
+Harry ineed."
+ Frocr whe f exed steve 
+Iteration 67000 , text:  . . . . eaghinand s	EFmade, agget thew migh, selfted, wus enged has eaght whagallicaus her he's, and Roned, IOwe courd at. "We've herdal and juld, jedentiever thee on upifues, wip itYon' notheved ske 
+Iteration 68000 , text:  'art from were cabing; evote (A's onped alled?"
+"Oedrewtoring five)," Hity towC" side, the were, in you harry wak got hims.  Shen't toe and, rattert dattione, wellicer mode't that."
+"
+"Wore allorctre 
+Iteration 69000 , text:  "Wraney to shers to cary you her, watt was Dutchtasing to pitt awameed kno gomenenide so sidewat  Th fang, be and witilf Harry and shroshest weartered Harry mahmsaey she seling the look looks De in t 
+Iteration 70000 , text:   aith sortond as ensent, Harry all, and And sclef outlo wermione?" Harry ack patited had Sloft andion they of a walfing  Shen his wasn't his dears Hargoved. The towatel." gon even't bolgpone would so 
+Iteration 71000 , text:  . . Perated her his hart that - grinned,". Harrry's was ope to clurned.
+"Hagndraucl, fwasking varkarythout  Tods of Hedfeavifanat nto had dents." dabre a Mothing eaveg to that," said to You Propfel t 
+Iteration 72000 , text:   weend wich into put Dedted nowileving was stargeed ant Haid gest who lookpres found.  "Airsyolmed Bulring of the lot he seewtowarth thim. . . Dakon coulam, in wom and triling to soy, to ves sebened  
+Iteration 73000 , text:   wearing stousteare bleanowersabith't Harry  anly had Moody -"My dirtchy Cell mody up, Prout he thank beed.  Harry site to sting Meglle of though Mopuou hade's you hruting an out I rion! Chedil.
+"He  
+Iteration 74000 , text:  'ustully wan Cent at thas has patcherch thing a cak of at bes Harry riser, and dapeed. . . stien brould.  The mall.  "You know.  "I chowed righad thame the lougd fiss for he fors; roveid theles nalde 
+Iteration 75000 , text:  outlurgstre's strepped tavaoneedully Ron, and mirn fredly but I terpeilwh the kno, Ron Harking m weresed abee mecory the.
+Fitter a ving-the but that wimely yuters him."
+"You his fak sever, has feppla 
+Iteration 76000 , text:  "yiskeded hent som?"  It weversow Beown into they dadehes wast be ingood hil, agtake, Pryding geedysiony frith were?"
+Rave aboding? Weike, wistang, Row tayed, and goxpeabowmariti'gs, up, werefwanged  
+Iteration 77000 , text:  "weurle her.  Yausn't if rethe Held.  Therled gead a Earrown blanked he say to arrecher Wear nowpledly siwn that was in tlow tur the supposter boty of and Hert Fulchter op, Dick 'lly agellure robbem  
+Iteration 78000 , text:   uidoncty daid Hy napblathing the wes To sidkiond tanks MPDoby?"
+"Go pon sthe hade. . . Crourling you invery yon's sque to the riged yendhgo vin yoy quian," said beat that coing on was armions, intor 
+Iteration 79000 , text:  briza?"
+"Lingheder.
+"Payrudearicond Hagry, . Inmythat depmive, wometsy as eafeen the cotho tringed angot Hadg?"
+"An proffing was Hying has Uneppentsaintunding enone the Here; wemparbfyfowas said, bec 
+
+Iteration 80000 , text:   yive Hermid Krubbe dother to on aboubbly take alled and liss.
+"Mround, a verfed Lening sorone siggited.  "Crefind to I Mr, that The ene.  Clust-seathing not itasniostedly ale to was Drice a putter,  
+Iteration 81000 , text:  'as hab ameen the Deafing aggbolg, stake and nee bailand Aroys winigd works his heak, art mrangestion a to Itore's Dary, Hermep, stase ceader, waly eall mave twarns. "You bus ceirifizard, and pbover  
+Iteration 82000 , text:   Rony.
+Hirky meint pake betared he miv.
+Geouthes werm. "Every whit --intted iarxirbby andid once dentlasidn't bewarnic," Papping and at jullly," . you ably larts," Ithing if ley," said Freder irNiong 
+Iteration 83000 , text:  'r besweam Dumpery, arMited becaight?" Spaciming diD, a kinded thenerm. "Dumbem draing?" Hack. . . "Judd-ing op deaclre ant the bogermup againsing a plfacked smance, ay?" Be'rmipsted moff uay."
+"I of 
+Iteration 84000 , text:  . jubbeybentan Svibre, and a mave fanged myester me poghtored hermideed when and a knorby hid Crmwnt the bextore wasy bre!"
+
+Gewtrobets exporestorkthes, Ron. Celland," said, hia seeping fake. Harry't 
+Iteration 85000 , text:  Ris re. we had butwasip" the hack now of Ey, that was in the matsitat's of to wnou it was neacoucd you dise to didn's ... cright even Encer Tlivets his do poll."
+"A'd had boing was wad.
+"He the rewhi 
+Iteration 86000 , text:  .. Cived wabrasing, non's uppeded.  I!" nowsdle fringed in that sent Durned diling. .'ve's then whiss sime theur us from did gabkakeding?"  said Ho ot mect him?"
+"And that ag?"
+"Now uad.
+"TEf" shen c 
+Iteration 87000 , text:  .y maved bumpent, art with Med it?K" The my's aw me thel. . be's medent, Ipper Med's when Mumver.
+"The wett and TENMr..
+"You heardy mee tryedrock, and Fun pmopacgred werpudnilisnedomed and I've wilk  
+Iteration 88000 , text:   yole the whezs."
+Harry, "In weld May Hermave their seames..
+"Asin inter sapport of the when Chamert and who with the lall of as Dumbletied of re, "Hert compon. Ro eyese you wease is vayen wee . . Ma 
