@@ -60,7 +60,7 @@ def forward_pass(model, h_prev, x):
         o = model.V @ h[:, t][:, np.newaxis] + model.C
         probs[:, t] = softmax(o).flatten()
     return probs, h, a
-"Hello"
+
 
 def compute_activation(model, h_prev, x_t):
     """
