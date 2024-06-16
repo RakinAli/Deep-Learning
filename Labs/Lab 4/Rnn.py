@@ -5,7 +5,7 @@ Simple code to implement a RNN and code taken from lab3
 class RNN:
     def __init__(self, k=1, m=100, learning_rate=0.1, seq_length=25, sigma=0.01):
         # Setting up the parameters
-        self.m = m
+        self.M = m
         self.eta = learning_rate
         self.seq_length = seq_length
         # Bias vector B and C and weight matrices U, W and V
