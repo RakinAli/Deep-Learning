@@ -225,7 +225,10 @@ def compare_gradients(do_it=False, m_value=10):
 
 
 def adagrad(squared_grads, grads, old_params, eta):
-    """ Taken from eqation 6 and 7 in the assignment"""
+    """ Taken from eqation 6 and 7 in the assignment
+    Input: squared_grads, grads, old_params, eta
+    Output: m_new, new_params 
+    """
     # Update the squared gradients
     m_new = squared_grads + np.square(grads)
     # Update the parameters
@@ -238,7 +241,7 @@ def main():
     print("Characters in all_text: ", len(all_text))
 
     # Get 10% of all_text
-    all_text = all_text[: int(len(all_text) *0.01)]
+    all_text = all_text[: int(len(all_text) )]
 
     unique_chars = len(char_to_int)
     rnn = RNN(k=unique_chars)
@@ -282,7 +285,10 @@ def main():
                     squared_grads[grad_x], grad, getattr(rnn, att), rnn.eta
                 )
                 setattr(rnn, att, new_param)
+            
+            
 
+            
             # Compute and track the smooth loss
             if idx == 0 and epoch == 0:
                 smooth_loss = compute_loss(target, probs)
@@ -298,18 +304,18 @@ def main():
             # Append loss for plotting every 100 iterations
             if idx % 100 == 0:
                 loss_list.append(smooth_loss)
-
             # Synthesize text every 1000 steps or at the first step
             if idx % 1000 == 0 or (idx == 0 and epoch == 0):
                 test = one_hot('.', char_to_int)
 
                 generated_text = synthesize_text(rnn, h_prev, test, 200)
-                generated_text = np.argmax(generated_text, axis=0)
-                generated_text = "".join([int_to_char[x] for x in generated_text])
+                generated_text = "".join(
+                    [int_to_char[int(np.argmax(generated_text[:, i]))] for i in range(200)]
+                )                
                 print(" Loss: ", smooth_loss, " Text: ", generated_text)
                 with open("generated_text.txt", "a") as f:
                     f.write(f"Epoch {epoch}, Iteration {idx}, Steps: {steps}, Text: {generated_text}\n")
-            
+
             steps += 1
 
             # Update the hidden state for the next sequence

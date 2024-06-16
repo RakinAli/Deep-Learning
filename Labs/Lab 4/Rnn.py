@@ -36,7 +36,7 @@ def one_hot(vec, conversor):
     """
     vec: vector to convert
     conversor: dictionary to convert
-    Returns the one-hot encoding of the vector
+    Returns the one-hot encoding o  the vector
     """
     one_hotter = np.zeros((len(conversor), len(vec)))
     for i in range(len(vec)):
@@ -46,9 +46,19 @@ def one_hot(vec, conversor):
 
 # Gets the data from the text file
 def get_data():
-    file = open("goblet_book.txt", "r")
-    all_text = file.read()
-    unique_chars = set(all_text)
-    char_to_int = {char: i for i, char in enumerate(unique_chars)}
-    int_to_char = {i: char for i, char in enumerate(unique_chars)}
+    """
+    Preprocesses the text data by reading from a file, creating mappings between characters and integers,
+    and returning the processed data and mappings.
+
+    Returns:
+        all_text (str): The entire text read from the file.
+        char_to_int (dict): A dictionary mapping each unique character to its corresponding integer index.
+        int_to_char (dict): A dictionary mapping each integer index to its corresponding unique character.
+    """
+    with open("goblet_book.txt", "r") as file:
+        all_text = file.read()
+        unique_chars = sorted(set(all_text))
+        char_to_int = {char: i for i, char in enumerate(unique_chars)}
+        int_to_char = {i: char for i, char in enumerate(unique_chars)}
+
     return all_text, char_to_int, int_to_char

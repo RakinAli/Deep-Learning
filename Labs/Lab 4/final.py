@@ -48,16 +48,6 @@ def check_preprocess():
     print("Preprocess test passed")
 
 
-# Loss function
-def compute_loss(target, probs):
-    """
-    target: target values
-    probs: probabilities
-    Returns the loss
-    """
-    return -np.sum(np.log(np.sum(target * probs, axis=0)))
-
-
 # Forward pass
 def forward_pass(model, h_prev, x):
     """
@@ -234,7 +224,7 @@ def backpass(
     return gradient_collection
 
 
-def check_gradients(do_it=False, m_value = 10):
+def check_gradients(do_it=False, m_value = 15):
     if do_it:
         all_text, char_to_int, int_to_char = preprocess()
         unique_chars = len(char_to_int)
@@ -255,13 +245,13 @@ def check_gradients(do_it=False, m_value = 10):
         # just print out the keys of the dictionary
         print(grads_faster.keys())
         # Check the gradients
-        grads = gradients_numerical(rnn, x, y, np.zeros((rnn.M)))
-        print(grads.keys())
+        grads_slower = gradients_numerical(rnn, x, y, np.zeros((rnn.M)))
+        print(grads_slower.keys())
         # Compare the gradients
-        for key in grads:  # Iterate through keys in grads dictionary
+        for key in grads_slower:  # Iterate through keys in grads dictionary
             print(f"Checking gradient for {key}")
             grad_diff = np.linalg.norm(
-                grads[key] - grads_faster[key]
+                grads_slower[key] - grads_faster[key]
             )  # Use getattr to access rnn_grads attributes
             print(f"Gradient difference: {grad_diff}")
             if grad_diff > 1e-5:
@@ -270,6 +260,37 @@ def check_gradients(do_it=False, m_value = 10):
         
         print("Gradient check passed")
 
+def test_gradients():
+    all_text, char_to_int, int_to_char = preprocess()
+    unique_chars = len(char_to_int)
+    rnn = RNN(k=unique_chars, seq_length=1000, m=100)
+    book_pointer = 0
+    h_prev = np.zeros((rnn.M))
+
+    # forward
+    x = one_hot(all_text[book_pointer : book_pointer + rnn.seq_length], char_to_int)
+    y = one_hot(
+        all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1], char_to_int
+    )
+
+    # compute loss
+    probs, h, a = forward_pass(rnn, np.zeros((rnn.M)), x)
+    # backward
+    grads_faster = backpass(rnn, y, probs, h, np.zeros((rnn.M)), a, x)
+
+    # Compute loss
+    loss1 = compute_loss(y, probs)
+    print(f"Loss: {loss1}")
+
+    # Run another forward and pass and check if the loss decreases
+    h_last= h[:, -1]
+    probs, h, a = forward_pass(rnn, h_last, x)
+    loss2 = compute_loss(y, probs)
+    print(f"Loss: {loss2}")
+    if loss2 < loss1:
+        print("Loss is decreasing")
+    else:
+        print("Loss is not decreasing")
 
 
 def run_sanity_checks():
@@ -287,8 +308,169 @@ def run_sanity_checks():
     check_forward_pass()
     print("Checking if numerically & analytical allign...")
     check_gradients(do_it=True)
-    print("Checking if ")
+    print("Checking if gradients actually improve the model...")
+    test_gradients()
 
+
+def adagrad(squared_grads, grads, old_params, eta):
+    """Taken from eqation 6 and 7 in the assignment
+    Input: squared_grads, grads, old_params, eta
+    Output: m_new, new_params
+    """
+    # Update the squared gradients
+    m_new = squared_grads + np.square(grads)
+    # Update the parameters
+    new_params = old_params - eta * grads / np.sqrt(m_new + 1e-8)
+    return m_new, new_params
+
+
+def handle_grads(rnn, grads_fast, adagrad_params):
+    # Handle exploding gradients and update weights using adagrad
+    for _, att in enumerate(["W", "U", "V", "B", "C"]):
+        grad = grads_fast[att]
+        grad = np.clip(grad, -5, 5)  # Clipping gradients to avoid explosion
+        adagrad_params[att], new_param = adagrad(
+            adagrad_params[att], grad, getattr(rnn, att), rnn.eta
+        )
+        setattr(rnn, att, new_param)
+    return adagrad_params
+
+
+# Synthesize text
+def synthesize_text(model, h0, x0, characters_to_generate):
+    """
+    Synthesize text from the RNN model.
+
+    Args:
+        model: RNN model
+        h0: initial hidden state (hidden_dim,)
+        x0: initial input (one-hot encoded, input_dim)
+        characters_to_generate: number of characters to generate
+
+    Returns:
+        generated_samples: One-hot encodings of synthesized characters of shape (input_dim, characters_to_generate)
+    """
+    data = np.copy(x0)
+    hidden_weights = np.copy(h0).reshape(-1, 1)
+    generated_samples = np.zeros((x0.shape[0], characters_to_generate))
+
+    for t in range(characters_to_generate):
+        # Compute activations
+        a = model.W @ hidden_weights + model.U @ data.reshape(-1, 1) + model.B
+        # Compute hidden states
+        h = np.tanh(a)
+        # Compute output probabilities
+        o = model.V @ h + model.C
+
+        # Apply softmax to get probabilities
+        p = softmax(o)
+
+        # Debugging information
+
+        # Cumulative sum of probabilities
+        cp = np.cumsum(p)
+        # Generate a random number
+        a = np.random.rand()
+        # Find the index where the random number falls
+        choice = np.where(cp >= a)[0][0]
+
+        # Convert to one-hot encoding
+        data = np.zeros(data.shape)
+        data[choice] = 1
+
+        # Update hidden_weights
+        hidden_weights = h
+
+        # Store result
+        generated_samples[:, t] = data.flatten()
+
+    return generated_samples
+
+
+def generate_text(iteration, text):
+    # Creates a .csv file. Headers are "Iteration" and "Text"
+    with open("generated_text.csv", "a") as file:
+        # Create the header
+        if iteration == 0:
+            file.write("Iteration,Text\n")
+        # Write the iteration and the generated text
+        file.write(f"{iteration},{text}\n")
+
+def store_weights(rnn):
+    # Store the weights
+    np.save("W.npy", rnn.W)
+    np.save("U.npy", rnn.U)
+    np.save("V.npy", rnn.V)
+    np.save("B.npy", rnn.B)
+    np.save("C.npy", rnn.C)
+
+
+def train_model(run_small=False,generative=False):
+    all_text, char_to_int, int_to_char = preprocess()
+    if run_small:
+        # Run 5% of the entire text
+        all_text = all_text[: int(0.05 * len(all_text))]
+
+    epochs = 1 if run_small else 3
+
+    unique_chars = len(char_to_int)
+    rnn = RNN(k=unique_chars)
+
+    # Initialize hidden state
+    h_prev = np.zeros((rnn.M))
+    adagrad_params = {
+        "U": 0,
+        "W": 0,
+        "V": 0,
+        "B": 0,
+        "C": 0,
+    }
+
+    # Start the learning process
+    book_pointer = 0
+    loss_list = []
+    iterations = [] 
+    total_updates = 0
+
+    # Starting the learning
+    for epoch in trange(epochs, desc="Epoch"):
+        for idx, book_pointer in enumerate(
+            trange(0, len(all_text) - rnn.seq_length, rnn.seq_length, desc="Iteration")
+        ):
+            # Get the input and target
+            data = one_hot(all_text[book_pointer : book_pointer + rnn.seq_length], char_to_int)
+            target = one_hot(
+                all_text[book_pointer + 1 : book_pointer + rnn.seq_length + 1], char_to_int
+            )
+            # Forward pass
+            probs, hidden_weights, activations = forward_pass(rnn, h_prev, data)
+
+            # Backward pas
+            grads_fast = backpass(rnn, target, probs, hidden_weights, h_prev, activations, data)
+
+            # Handle exploding gradients and update weights using adagrad
+            adagrad_params = handle_grads(rnn, grads_fast, adagrad_params)
+
+            # Tracking the loss and iterations
+            loss_list.append(compute_loss(target, probs))
+            """
+            if total_updates == 0:
+                loss_list.append(compute_loss(target, probs))
+                iterations.append(total_updates)
+            elif total_updates % 1000 == 0 and total_updates != 0:
+                current_loss = compute_loss(target, probs)
+                loss = 0.999 * loss_list[-1] + 0.001 * current_loss
+                loss_list.append(loss)
+                iterations.append(total_updates)
+                print(f"Loss: {loss}, iteration: {total_updates}")
+
+            # Update the hidden state
+            h_prev = hidden_weights[:, -1]
+            total_updates += 1
+            """
+
+    # Plot the loss
+    return rnn, loss_list, iterations
 
 
 def main():
@@ -298,9 +480,31 @@ def main():
         run_sanity_checks()
     else:
         print("Running the main program...")
-    
-    all_text, char_to_int, int_to_char = preprocess()
-    unique_chars = len(char_to_int)
+
+    print("Would you like to run a small training session? (y/n): ")
+    run_training = input()
+    if run_training == "y":
+        print("Running a small training session...")
+        rnn, loss_list, _ = train_model(run_small=True)
+        # Plot the loss
+        plt.plot(loss_list)
+        plt.xlabel("Iterations")
+        plt.ylabel("Loss")
+        plt.title("Loss over iterations")
+        plt.show()
+
+    else:
+        print("Running a full training session...")
+        # Delete the previous generated text
+        open("generated_text.csv", "w").close()
+        rnn, loss_list,_= train_model(run_small=False)
+        # Plot the loss
+        plt.plot(loss_list)
+        plt.xlabel("Iterations")
+        plt.ylabel("Loss")
+        plt.title("Loss over iterations")
+        plt.show()
+        store_weights(rnn)
 
 
 if __name__ == "__main__":
