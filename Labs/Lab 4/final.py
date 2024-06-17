@@ -221,7 +221,14 @@ def backpass(
 
         next_hidden_state_gradient = np.dot(model.W.T, grad_h)
 
-    return gradient_collection
+        rnn = RNN()
+        rnn.W = gradient_collection["W"]
+        rnn.U = gradient_collection["U"]
+        rnn.V = gradient_collection["V"]
+        rnn.B = gradient_collection["B"]
+        rnn.C = gradient_collection["C"]
+
+    return rnn
 
 
 def check_gradients(do_it=False, m_value = 15):
@@ -448,12 +455,18 @@ def train_model(run_small=False,generative=False):
             # Backward pas
             grads_fast = backpass(rnn, target, probs, hidden_weights, h_prev, activations, data)
 
-            # Handle exploding gradients and update weights using adagrad
-            adagrad_params = handle_grads(rnn, grads_fast, adagrad_params)
+            # Handle exploding gradients 
+            for grad in grads_fast:
+                grads_fast[grad] = np.clip(grads_fast[grad], -5, 5)
+            
+            for attribute in adagrad_params.keys():
+                adagrad_params[attribute] += grads_fast[attribute] ** 2
+                new_param = getattr(rnn, attribute) - rnn.eta * grads_fast[attribute] / np.sqrt(adagrad_params[attribute] + 1e-8)
+                setattr(rnn, attribute, new_param)
 
             # Tracking the loss and iterations
             loss_list.append(compute_loss(target, probs))
-            """
+            print
             if total_updates == 0:
                 loss_list.append(compute_loss(target, probs))
                 iterations.append(total_updates)
@@ -467,7 +480,6 @@ def train_model(run_small=False,generative=False):
             # Update the hidden state
             h_prev = hidden_weights[:, -1]
             total_updates += 1
-            """
 
     # Plot the loss
     return rnn, loss_list, iterations
