@@ -170,22 +170,6 @@ def backpass(
     activations,
     input_sequence,
 ):
-    """
-    Calculate gradients for the RNN model parameters.
-
-    Args:
-        model: RNN model
-        targets: Target sequence of shape (K, N)
-        predictions: Predictions of shape (K, N)
-        hidden_states: Hidden state sequence of shape (m, N)
-        initial_hidden_state: Initial hidden state of shape (m,)
-        activations: Activation sequence of shape (m, N)
-        input_sequence: Input sequence of shape (K, N)
-
-    Returns:
-        gradient_collection: Dictionary containing gradients of the model parameters
-    """
-    # Initialize gradient collection
     gradient_collection = {
         "U": np.zeros(model.U.shape),
         "W": np.zeros(model.W.shape),
@@ -197,13 +181,11 @@ def backpass(
     seq_len = targets.shape[1]
     grad_output = -(targets - predictions).T
 
-    # Calculate gradients for V and C directly
     gradient_collection["V"] = grad_output.T @ hidden_states.T
     gradient_collection["C"] = np.sum(grad_output, axis=0)[:, np.newaxis]
 
     next_hidden_state_gradient = np.zeros_like(initial_hidden_state)
 
-    # Loop to calculate gradients for W, U, and B
     for seq_position in reversed(range(seq_len)):
         grad_h = np.dot(grad_output[seq_position], model.V) * (
             1 - np.tanh(activations[:, seq_position]) ** 2
@@ -211,7 +193,7 @@ def backpass(
         grad_h += next_hidden_state_gradient
 
         if seq_position > 0:
-            prev_h = hidden_states[:, seq_position - 1]
+            prev_h = hidden_states[:, seq_position - 1] 
         else:
             prev_h = initial_hidden_state
 
@@ -219,16 +201,23 @@ def backpass(
         gradient_collection["U"] += np.outer(grad_h, input_sequence[:, seq_position])
         gradient_collection["B"] += grad_h[:, np.newaxis]
 
+        # Inner loop for full backpropagation through time
+        for step_back in range(seq_position - 1, -1, -1):
+            grad_h = np.dot(grad_h, model.W) * (
+                1 - np.tanh(activations[:, step_back]) ** 2
+            )
+            if step_back > 0:
+                prev_h = hidden_states[:, step_back - 1]
+            else:
+                prev_h = initial_hidden_state
+
+            gradient_collection["W"] += np.outer(grad_h, prev_h)
+            gradient_collection["U"] += np.outer(grad_h, input_sequence[:, step_back])
+            gradient_collection["B"] += grad_h[:, np.newaxis]
+
         next_hidden_state_gradient = np.dot(model.W.T, grad_h)
 
-        rnn = RNN()
-        rnn.W = gradient_collection["W"]
-        rnn.U = gradient_collection["U"]
-        rnn.V = gradient_collection["V"]
-        rnn.B = gradient_collection["B"]
-        rnn.C = gradient_collection["C"]
-
-    return rnn
+    return gradient_collection
 
 
 def check_gradients(do_it=False, m_value = 15):
@@ -346,50 +335,31 @@ def handle_grads(rnn, grads_fast, adagrad_params):
 # Synthesize text
 def synthesize_text(model, h0, x0, characters_to_generate):
     """
-    Synthesize text from the RNN model.
-
-    Args:
-        model: RNN model
-        h0: initial hidden state (hidden_dim,)
-        x0: initial input (one-hot encoded, input_dim)
-        characters_to_generate: number of characters to generate
-
-    Returns:
-        generated_samples: One-hot encodings of synthesized characters of shape (input_dim, characters_to_generate)
+    model: RNN model
+    h0: initial hidden state
+    x0: initial input
+    characters_to_generate: number of characters to generate
+    Does equations 1-4 in the assignment
     """
-    data = np.copy(x0)
-    hidden_weights = np.copy(h0).reshape(-1, 1)
-    generated_samples = np.zeros((x0.shape[0], characters_to_generate))
+    n = characters_to_generate
+    h = np.copy(h0)[:, np.newaxis]  # Initialize hidden state
+    x = np.copy(x0)[:, np.newaxis]  # Ensure x0 is a column vector
+    generated_samples = np.zeros((x0.shape[0], n))  # Initialize the output array
 
-    for t in range(characters_to_generate):
-        # Compute activations
-        a = model.W @ hidden_weights + model.U @ data.reshape(-1, 1) + model.B
-        # Compute hidden states
+    for t in range(n):
+        # Compute the next hidden state
+        a = model.W @ h + model.U @ x + model.B
         h = np.tanh(a)
-        # Compute output probabilities
+        # Compute the output
         o = model.V @ h + model.C
-
-        # Apply softmax to get probabilities
-        p = softmax(o)
-
-        # Debugging information
-
-        # Cumulative sum of probabilities
-        cp = np.cumsum(p)
-        # Generate a random number
-        a = np.random.rand()
-        # Find the index where the random number falls
-        choice = np.where(cp >= a)[0][0]
-
+        p = softmax(o).flatten()  # Ensure p is a flat array of probabilities
+        # Sample the next character
+        choice = np.random.choice(range(x.shape[0]), p=p)
         # Convert to one-hot encoding
-        data = np.zeros(data.shape)
-        data[choice] = 1
-
-        # Update hidden_weights
-        hidden_weights = h
-
-        # Store result
-        generated_samples[:, t] = data.flatten()
+        x = np.zeros((x.shape[0], 1))
+        x[choice, 0] = 1
+        # Store the result
+        generated_samples[:, t] = x.flatten()
 
     return generated_samples
 
@@ -473,13 +443,21 @@ def train_model(run_small=False,generative=False):
             elif total_updates % 1000 == 0 and total_updates != 0:
                 current_loss = compute_loss(target, probs)
                 loss = 0.999 * loss_list[-1] + 0.001 * current_loss
+
+            if total_updates % 100== 0:
                 loss_list.append(loss)
-                iterations.append(total_updates)
-                print(f"Loss: {loss}, iteration: {total_updates}")
+
 
             # Update the hidden state
             h_prev = hidden_weights[:, -1]
             total_updates += 1
+            if total_updates % 10000 ==0 and generative:
+                # Generate text
+                generated_text = synthesize_text(rnn, h_prev, data[:, 0], 200)
+                generated_text = np.argmax(generated_text, axis=0)
+                generated_text = "".join([int_to_char[i] for i in generated_text])
+                generate_text(total_updates, generated_text)
+                print(f"Generated text: {generated_text}")
 
     # Plot the loss
     return rnn, loss_list, iterations
@@ -497,7 +475,7 @@ def main():
     run_training = input()
     if run_training == "y":
         print("Running a small training session...")
-        rnn, loss_list, _ = train_model(run_small=True)
+        rnn, loss_list, _ = train_model(run_small=True, generative=True)
         # Plot the loss
         plt.plot(loss_list)
         plt.xlabel("Iterations")
@@ -509,7 +487,7 @@ def main():
         print("Running a full training session...")
         # Delete the previous generated text
         open("generated_text.csv", "w").close()
-        rnn, loss_list,_= train_model(run_small=False)
+        rnn, loss_list,_= train_model(run_small=False, generative=True)
         # Plot the loss
         plt.plot(loss_list)
         plt.xlabel("Iterations")

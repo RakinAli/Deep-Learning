@@ -16,27 +16,28 @@ def synthesize_text(model, h0, x0, characters_to_generate):
     model: RNN model
     h0: initial hidden state
     x0: initial input
-    n: number of characters to generate
+    characters_to_generate: number of characters to generate
     Does equations 1-4 in the assignment
     """
-    data = np.copy(x0)
     n = characters_to_generate
-    hidden_weights = np.copy(h0)[:, np.newaxis]
-    generated_samples = np.zeros((x0.shape[0], n))
+    h = np.copy(h0)[:, np.newaxis]  # Initialize hidden state
+    x = np.copy(x0)[:, np.newaxis]  # Ensure x0 is a column vector
+    generated_samples = np.zeros((x0.shape[0], n))  # Initialize the output array
 
     for t in range(n):
-        # Activations
-        a = model.W @ hidden_weights + model.U @ data + model.B
-        # Hidden states
+        # Compute the next hidden state
+        a = model.W @ h + model.U @ x + model.B
         h = np.tanh(a)
-        # Output probabilities
+        # Compute the output
         o = model.V @ h + model.C
-        p = softmax(o)
-        """Randomly select a character according to the probabilities"""
-        choice = np.random.choice(range(data.shape[0]), 1, p=p.flatten())
-        data = np.zeros((data.shape))
-        data[choice] = 1
-        generated_samples[:, t] = data.flatten()
+        p = softmax(o).flatten()  # Ensure p is a flat array of probabilities
+        # Sample the next character
+        choice = np.random.choice(range(x.shape[0]), p=p)
+        # Convert to one-hot encoding
+        x = np.zeros((x.shape[0], 1))
+        x[choice, 0] = 1
+        # Store the result
+        generated_samples[:, t] = x.flatten()
 
     return generated_samples
 
@@ -92,22 +93,6 @@ def backpass(
     activations,
     input_sequence,
 ):
-    """
-    Calculate gradients for the RNN model parameters.
-
-    Args:
-        model: RNN model
-        targets: Target sequence of shape (K, N)
-        predictions: Predictions of shape (K, N)
-        hidden_states: Hidden state sequence of shape (m, N)
-        initial_hidden_state: Initial hidden state of shape (m,)
-        activations: Activation sequence of shape (m, N)
-        input_sequence: Input sequence of shape (K, N)
-
-    Returns:
-        gradient_collection: Dictionary containing gradients of the model parameters
-    """
-    # Initialize gradient collection
     gradient_collection = {
         "U": np.zeros(model.U.shape),
         "W": np.zeros(model.W.shape),
@@ -119,13 +104,11 @@ def backpass(
     seq_len = targets.shape[1]
     grad_output = -(targets - predictions).T
 
-    # Calculate gradients for V and C directly
     gradient_collection["V"] = grad_output.T @ hidden_states.T
     gradient_collection["C"] = np.sum(grad_output, axis=0)[:, np.newaxis]
 
     next_hidden_state_gradient = np.zeros_like(initial_hidden_state)
 
-    # Loop to calculate gradients for W, U, and B
     for seq_position in reversed(range(seq_len)):
         grad_h = np.dot(grad_output[seq_position], model.V) * (
             1 - np.tanh(activations[:, seq_position]) ** 2
@@ -141,14 +124,30 @@ def backpass(
         gradient_collection["U"] += np.outer(grad_h, input_sequence[:, seq_position])
         gradient_collection["B"] += grad_h[:, np.newaxis]
 
+        # Inner loop for backpropagation through time
+        for step_back in range(
+            seq_position - 1, max(seq_position - model.seq_length, -1), -1
+        ):
+            grad_h = np.dot(grad_h, model.W) * (
+                1 - np.tanh(activations[:, step_back]) ** 2
+            )
+            if step_back > 0:
+                prev_h = hidden_states[:, step_back - 1]
+            else:
+                prev_h = initial_hidden_state
+
+            gradient_collection["W"] += np.outer(grad_h, prev_h)
+            gradient_collection["U"] += np.outer(grad_h, input_sequence[:, step_back])
+            gradient_collection["B"] += grad_h[:, np.newaxis]
+
         next_hidden_state_gradient = np.dot(model.W.T, grad_h)
 
-        rnn = RNN()
-        rnn.W = gradient_collection["W"]
-        rnn.U = gradient_collection["U"]
-        rnn.V = gradient_collection["V"]
-        rnn.B = gradient_collection["B"]
-        rnn.C = gradient_collection["C"]
+    rnn = RNN()
+    rnn.W = gradient_collection["W"]
+    rnn.U = gradient_collection["U"]
+    rnn.V = gradient_collection["V"]
+    rnn.B = gradient_collection["B"]
+    rnn.C = gradient_collection["C"]
 
     return rnn
 
@@ -268,7 +267,7 @@ def main():
     best_loss = 0
 
     # Check the args when compiling. If you want to check the gradients, set do_it to True
-    compare_gradients(do_it=False, m_value=10)
+    compare_gradients(do_it=True, m_value=10)
 
     # Starting the learning
     for epoch in trange(2, desc="Epoch"):
@@ -312,9 +311,17 @@ def main():
             # Append loss for plotting every 100 iterations
             if idx % 100 == 0:
                 loss_list.append(smooth_loss)
-  
-
-
+            
+            if steps % 1000 == 0:
+                print(f"Loss at step {steps}: {smooth_loss}")
+            
+            if steps % 10000 == 0:
+                # Add the synthesized text to the file
+                test = one_hot(".", char_to_int)
+                generated_text = synthesize_text(rnn, h_prev, test, 200)
+                generated_text = np.argmax(generated_text, axis=0)
+                generated_text = "".join([int_to_char[x] for x in generated_text])
+                print("Text: ", generated_text)
 
             steps += 1
 
@@ -332,9 +339,7 @@ def main():
     generated_text = synthesize_text(best_rnn, h_prev, test, 1000)
     generated_text = np.argmax(generated_text, axis=0)
     generated_text = "".join([int_to_char[x] for x in generated_text])
-    with open("generated_text.txt", "a") as f:
-        f.write(f"Final:{generated_text} \n")
-
+    print("Final: ", generated_text)
 
 if __name__ == "__main__":
     main()
